@@ -19,13 +19,14 @@ select {
 }
 
 .app-shell {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
   min-height: 100vh;
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   gap: 12px;
   padding: 12px;
+  align-items: start;
 }
 
 .panel {
@@ -38,15 +39,12 @@ select {
 }
 
 .sidebar,
-.rightbar {
+.rightbar,
+.task-nav {
   display: flex;
   flex-direction: column;
   gap: 10px;
   min-width: 0;
-}
-
-.sidebar {
-  gap: 12px;
 }
 
 .workspace {
@@ -54,6 +52,54 @@ select {
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+}
+
+.task-nav {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 24px);
+  overflow: hidden;
+}
+
+.nav-create-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1043d9, #3d6bf0);
+  color: #fff;
+  text-align: left;
+}
+
+.nav-create-button strong {
+  font-size: 13px;
+}
+
+.nav-create-button span {
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.nav-create-button.active {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.75);
+}
+
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.nav-section h3 {
+  margin: 0;
+}
+
+.nav-list {
+  min-height: 0;
 }
 
 .section-header h1,
@@ -206,6 +252,13 @@ select {
   padding-top: 2px;
 }
 
+.param-panel,
+.detail-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .button-row {
   display: flex;
   gap: 6px;
@@ -349,10 +402,19 @@ video {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 280px;
+  max-height: 340px;
   overflow: auto;
 }
 
+.running-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.running-item,
 .history-item {
   background: #eff4fa;
   color: #11203b;
@@ -363,6 +425,7 @@ video {
   border-radius: 10px;
 }
 
+.running-item.active,
 .history-item.active {
   outline: 2px solid #1043d9;
 }
@@ -381,16 +444,17 @@ video {
 .history-delete {
   align-self: center;
   padding: 4px 8px;
+  flex-shrink: 0;
 }
 
 @media (max-width: 1280px) {
   .app-shell {
     max-width: none;
+    grid-template-columns: 1fr;
   }
 
   .field-span-2,
   .param-grid,
-  .sidebar .grid.two,
   .chart-grid,
   .status-grid {
     grid-template-columns: 1fr;
@@ -409,5 +473,10 @@ video {
     max-width: 180px;
     height: auto;
     aspect-ratio: 40 / 27;
+  }
+
+  .task-nav {
+    position: static;
+    max-height: none;
   }
 }

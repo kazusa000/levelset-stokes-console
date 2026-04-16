@@ -12,6 +12,7 @@ import {
 import type { ExperimentDetail, ExperimentSummary, JobConfig } from "./types";
 
 type Locale = "zh" | "en";
+type ViewMode = "create" | "experiment";
 
 const defaultConfig: JobConfig = {
   dimension: "3d",
@@ -41,10 +42,15 @@ const defaultConfig: JobConfig = {
 const ui = {
   zh: {
     subtitle: "本地实验控制台",
+    newExperiment: "新建实验",
     model: "模型设置",
     solver: "求解设置",
     render: "动画设置",
     advanced: "高级参数",
+    runningQueue: "运行中任务",
+    noRunningJobs: "当前没有运行中的任务。",
+    stopJob: "停止该任务",
+    recentExperiments: "最近实验",
     preset: "预设模板",
     choosePreset: "选择预设",
     dimension: "维度",
@@ -53,10 +59,7 @@ const ui = {
     objectiveMode: "目标模式",
     objectiveSense: "优化方向",
     unavailable: "暂不可用",
-    experimental: "实验性",
     shapePreview: "初始形状预览",
-    shapeStable: "标准形状，可直接用于当前优化流程",
-    shapeExperimental: "实验性形状，可能更容易数值不稳",
     currentTarget: "当前目标",
     axisI: "i 轴",
     axisJ: "j 轴",
@@ -98,10 +101,15 @@ const ui = {
   },
   en: {
     subtitle: "Local experiment console",
+    newExperiment: "New Experiment",
     model: "Model",
     solver: "Solver",
     render: "Rendering",
     advanced: "Advanced",
+    runningQueue: "Running jobs",
+    noRunningJobs: "No running jobs.",
+    stopJob: "Stop job",
+    recentExperiments: "Recent experiments",
     preset: "Preset",
     choosePreset: "Choose preset",
     dimension: "Dimension",
@@ -110,10 +118,7 @@ const ui = {
     objectiveMode: "Objective mode",
     objectiveSense: "Objective sense",
     unavailable: "unavailable",
-    experimental: "Experimental",
     shapePreview: "Initial shape preview",
-    shapeStable: "Standard shape, suitable for the current optimization workflow",
-    shapeExperimental: "Experimental shape, more likely to be numerically unstable",
     currentTarget: "Current target",
     axisI: "i axis",
     axisJ: "j axis",
@@ -177,6 +182,9 @@ function shapePreviewSvg(dimension: JobConfig["dimension"], shape: string): stri
     peanut: `<path d="M48,60c0,-18 14,-28 28,-28c8,0 14,3 18,8c4,-5 10,-8 18,-8c14,0 28,10 28,28s-14,28 -28,28c-8,0 -14,-3 -18,-8c-4,5 -10,8 -18,8c-14,0 -28,-10 -28,-28z" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`,
     dumbbell: `<circle cx="56" cy="60" r="22" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/><circle cx="104" cy="60" r="22" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/><rect x="56" y="49" width="48" height="22" rx="10" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`,
     three_lobe: `<path d="M83,30c10,0 20,8 20,19c0,2 0,4 -1,6c9,2 18,10 18,21c0,13 -11,22 -24,22c-8,0 -14,-3 -19,-8c-4,5 -10,8 -18,8c-13,0 -23,-10 -23,-22c0,-12 8,-19 18,-21c-1,-2 -1,-4 -1,-6c0,-11 10,-19 20,-19c6,0 11,2 15,6c4,-4 9,-6 15,-6z" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`,
+    rounded_three_lobe: `<path d="M84,31c8,0 15,4 19,10c11,1 21,9 21,21c0,13 -10,23 -24,23c-7,0 -13,-2 -18,-7c-4,4 -10,7 -17,7c-14,0 -25,-10 -25,-23c0,-12 9,-20 20,-21c4,-6 11,-10 18,-10c6,0 11,2 15,6c3,-4 7,-6 11,-6z" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`,
+    rounded_four_lobe: `<path d="M80,30c8,0 14,5 16,12c12,0 20,8 20,19c0,10 -8,18 -18,20c-1,11 -9,19 -18,19c-9,0 -17,-8 -18,-19c-10,-2 -18,-10 -18,-20c0,-11 8,-19 20,-19c2,-7 8,-12 16,-12z" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`,
+    seven_lobe_star: `<path d="M80,24c7,0 12,5 13,12c7,-1 13,2 16,8c7,1 12,6 12,13c0,6 -4,11 -9,13c1,8 -3,14 -10,17c-2,7 -8,11 -15,11c-5,0 -10,-2 -13,-7c-7,2 -14,0 -18,-5c-8,-1 -14,-7 -14,-14c0,-6 4,-12 10,-14c0,-7 4,-13 11,-15c3,-6 9,-9 17,-9z" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`,
     torus: `<circle cx="80" cy="60" r="31" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/><circle cx="80" cy="60" r="14" fill="#eef4fb" stroke="#4b6ea9" stroke-width="3"/>`,
     triaxial: `<path d="M44,66c0,-23 18,-36 40,-36c19,0 33,9 33,28c0,20 -15,32 -39,32c-21,0 -34,-9 -34,-24z" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`,
     circle: `<circle cx="80" cy="60" r="28" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`,
@@ -195,6 +203,10 @@ function shapePreviewSvg(dimension: JobConfig["dimension"], shape: string): stri
       ${silhouettes[shape] ?? fallback}
     </svg>
   `;
+}
+
+function shapePreviewImagePath(dimension: JobConfig["dimension"], shape: string): string {
+  return `/shape-previews/${dimension}/${shape}.png`;
 }
 
 function usePolling<T>(url: string, intervalMs: number, enabled = true) {
@@ -273,14 +285,27 @@ async function postJson<T>(url: string, payload?: unknown): Promise<T> {
   return response.json();
 }
 
+function formatTarget(
+  config: Pick<JobConfig, "objective_mode" | "i_axis" | "j_axis"> & Partial<Pick<JobConfig, "objective_sense">>
+): string {
+  const sense = config.objective_sense ?? "min";
+  return `${sense} ${config.objective_mode}_${config.i_axis}${config.j_axis}`;
+}
+
 export default function App() {
   const [locale, setLocale] = useState<Locale>(() => {
     const stored = window.localStorage.getItem("levelset-console-locale");
     return stored === "en" ? "en" : "zh";
   });
   const { data: configData } = usePolling<any>("/api/config", 10000);
-  const { data: currentData, error: currentError, setData: setCurrentData } = usePolling<{ current: ExperimentDetail | null }>(
-    "/api/jobs/current",
+  const [selectedExperimentId, setSelectedExperimentId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("create");
+  const jobsUrl = useMemo(
+    () => `/api/jobs${selectedExperimentId ? `?focus=${encodeURIComponent(selectedExperimentId)}` : ""}`,
+    [selectedExperimentId]
+  );
+  const { data: jobsData, error: currentError, setData: setJobsData } = usePolling<{ running: ExperimentDetail[] }>(
+    jobsUrl,
     2500
   );
   const { data: experimentsData, error: experimentsError, setData: setExperimentsData } = usePolling<
@@ -289,14 +314,22 @@ export default function App() {
 
   const [form, setForm] = useState<JobConfig>(defaultConfig);
   const [busy, setBusy] = useState(false);
-  const [selectedExperimentId, setSelectedExperimentId] = useState<string | null>(null);
-  const [experimentDetail, setExperimentDetail] = useState<ExperimentDetail | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
+  const [shapePreviewFailed, setShapePreviewFailed] = useState(false);
   const t = ui[locale];
 
-  const currentExperiment = currentData?.current ?? null;
-  const locked = Boolean(currentExperiment);
+  const runningExperiments = jobsData?.running ?? [];
+  const runningIds = useMemo(() => new Set(runningExperiments.map((job) => job.id)), [runningExperiments]);
+  const activeRunning = useMemo(
+    () => runningExperiments.find((job) => job.id === selectedExperimentId) ?? null,
+    [runningExperiments, selectedExperimentId]
+  );
+  const detailUrl = useMemo(
+    () => (selectedExperimentId ? `/api/experiments/${encodeURIComponent(selectedExperimentId)}` : ""),
+    [selectedExperimentId]
+  );
+  const { data: detailData, setData: setDetailData } = usePolling<ExperimentDetail>(detailUrl, 2500, Boolean(selectedExperimentId));
 
   const shapes = useMemo(() => configData?.shapes?.[form.dimension] ?? [], [configData, form.dimension]);
   const presets = configData?.presets ?? [];
@@ -305,16 +338,25 @@ export default function App() {
   const objectiveModes = configData?.objective_modes ?? [
     { key: "K", enabled: true },
     { key: "C", enabled: true },
-    { key: "Q", enabled: false }
+    { key: "Q", enabled: true }
   ];
   const objectiveSenses = configData?.objective_senses ?? ["min", "max"];
   const supportsC = form.algorithm === "original" || form.algorithm === "ns";
+  const supportsQ = form.dimension === "3d" && (form.algorithm === "original" || form.algorithm === "ns");
   const supportsObjectiveSense = form.algorithm === "original" || form.algorithm === "ns";
   const selectedShape = shapes.find((shape: any) => shape.key === form.initial_shape) ?? null;
-  const shapePreview = useMemo(
+  const shapePreviewSvgUrl = useMemo(
     () => `data:image/svg+xml;utf8,${encodeURIComponent(shapePreviewSvg(form.dimension, form.initial_shape))}`,
     [form.dimension, form.initial_shape]
   );
+  const shapePreviewImage = useMemo(
+    () => shapePreviewImagePath(form.dimension, form.initial_shape),
+    [form.dimension, form.initial_shape]
+  );
+
+  useEffect(() => {
+    setShapePreviewFailed(false);
+  }, [form.dimension, form.initial_shape]);
 
   useEffect(() => {
     window.localStorage.setItem("levelset-console-locale", locale);
@@ -343,49 +385,64 @@ export default function App() {
   }, [form.objective_mode, supportsC]);
 
   useEffect(() => {
+    if (form.objective_mode === "Q" && !supportsQ) {
+      setForm((prev) => ({ ...prev, objective_mode: "K" }));
+    }
+  }, [form.objective_mode, supportsQ]);
+
+  useEffect(() => {
     if (form.objective_sense === "max" && !supportsObjectiveSense) {
       setForm((prev) => ({ ...prev, objective_sense: "min" }));
     }
   }, [form.objective_sense, supportsObjectiveSense]);
 
   useEffect(() => {
-    if (currentExperiment) {
-      setSelectedExperimentId(currentExperiment.id);
-      setExperimentDetail(currentExperiment);
+    if (!selectedExperimentId && viewMode === "experiment") {
+      if (runningExperiments.length) {
+        setSelectedExperimentId(runningExperiments[0].id);
+        return;
+      }
+      if (experimentsData?.length) {
+        setSelectedExperimentId(experimentsData[0].id);
+      }
+      return;
+    } else if (!selectedExperimentId) {
       return;
     }
 
-    if (!selectedExperimentId && experimentsData?.length) {
-      void loadExperiment(experimentsData[0].id);
+    const selectedExists =
+      runningIds.has(selectedExperimentId) ||
+      Boolean(experimentsData?.some((experiment) => experiment.id === selectedExperimentId));
+    if (!selectedExists) {
+      if (runningExperiments.length) {
+        setSelectedExperimentId(runningExperiments[0].id);
+      } else if (experimentsData?.length) {
+        setSelectedExperimentId(experimentsData[0].id);
+      } else {
+        setSelectedExperimentId(null);
+      }
     }
-  }, [currentExperiment, experimentsData, selectedExperimentId]);
+  }, [selectedExperimentId, runningExperiments, runningIds, experimentsData, viewMode]);
 
-  const activeDetail = currentExperiment ?? experimentDetail;
+  const activeDetail = activeRunning ?? detailData ?? null;
   const objectiveSeries = activeDetail?.series?.["obj.txt"] ?? activeDetail?.series?.["obj_rv.txt"];
   const volumeSeries = activeDetail?.series?.["vol.txt"] ?? activeDetail?.series?.["vol_rv.txt"];
   const activeCameraUrl =
     activeDetail?.preview_urls?.[form.camera_preset] ?? activeDetail?.final_urls?.[form.camera_preset] ?? null;
-
-  const loadExperiment = async (id: string) => {
-    const response = await fetch(`/api/experiments/${id}`);
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-    const payload = (await response.json()) as ExperimentDetail;
-    setSelectedExperimentId(id);
-    setExperimentDetail(payload);
-  };
 
   const handleStart = async () => {
     try {
       setBusy(true);
       setMessage("");
       const payload = patchDefaults(form);
-      const response = await postJson<{ current: ExperimentDetail | null }>("/api/jobs", payload);
-      if (response.current) {
-        setSelectedExperimentId(response.current.id);
-        setExperimentDetail(response.current);
-      }
+      const response = await postJson<ExperimentDetail>("/api/jobs", payload);
+      setSelectedExperimentId(response.id);
+      setViewMode("experiment");
+      setDetailData(response);
+      setJobsData((prev) => {
+        const running = [response, ...(prev?.running ?? []).filter((job) => job.id !== response.id)];
+        return { running };
+      });
       const experiments = await fetch("/api/experiments").then((res) => res.json());
       setExperimentsData(experiments);
     } catch (error) {
@@ -395,10 +452,16 @@ export default function App() {
     }
   };
 
-  const handleStop = async () => {
+  const handleStop = async (experimentId: string) => {
     try {
       setBusy(true);
-      await postJson("/api/jobs/current/stop");
+      await postJson(`/api/jobs/${experimentId}/stop`);
+      const [jobs, experiments] = await Promise.all([
+        fetch(`/api/jobs${selectedExperimentId ? `?focus=${encodeURIComponent(selectedExperimentId)}` : ""}`).then((res) => res.json()),
+        fetch("/api/experiments").then((res) => res.json())
+      ]);
+      setJobsData(jobs);
+      setExperimentsData(experiments);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : t.stopFailed);
     } finally {
@@ -409,19 +472,24 @@ export default function App() {
   const handleRender = async (final: boolean, experimentId?: string) => {
     try {
       setBusy(true);
-      const url = experimentId
-        ? `/api/experiments/${experimentId}/render`
-        : "/api/jobs/current/render";
+      const targetId = experimentId ?? selectedExperimentId;
+      if (!targetId) {
+        throw new Error("No selected experiment.");
+      }
+      const url = runningIds.has(targetId)
+        ? `/api/jobs/${targetId}/render`
+        : `/api/experiments/${targetId}/render`;
       const result = await postJson<ExperimentDetail>(url, {
         camera_preset: form.camera_preset,
         final
       });
-      if (experimentId) {
-        setExperimentDetail(result);
-      } else {
-        setCurrentData({ current: result });
-        setExperimentDetail(result);
-      }
+      setDetailData(result);
+      setJobsData((prev) => {
+        if (!prev?.running?.length) return prev ?? { running: [] };
+        return {
+          running: prev.running.map((job) => (job.id === result.id ? result : job))
+        };
+      });
       setMessage(final ? t.renderedFinal(form.camera_preset) : t.refreshedPreview(form.camera_preset));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : t.renderFailed);
@@ -449,7 +517,7 @@ export default function App() {
       setPendingDeleteId(null);
       if (selectedExperimentId === id) {
         setSelectedExperimentId(null);
-        setExperimentDetail(null);
+        setDetailData(null);
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : t.deleteFailed);
@@ -477,7 +545,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <aside className="panel sidebar">
+      <aside className="panel task-nav">
         <div className="section-header">
           <h1>LevelSetStokes Console</h1>
           <div className="header-row">
@@ -489,449 +557,59 @@ export default function App() {
           </div>
         </div>
 
-        <div className="param-section">
-          <div className="param-section-title">{t.model}</div>
-          <div className="param-grid">
-            <label className="field-span-2">
-              {t.preset}
-              <select onChange={(e) => handlePresetLoad(e.target.value)} defaultValue="">
-                <option value="">{t.choosePreset}</option>
-                {presets.map((preset: any) => (
-                  <option key={preset.name} value={preset.name}>
-                    {preset.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+        <button
+          className={`nav-create-button ${viewMode === "create" ? "active" : ""}`}
+          onClick={() => {
+            setPendingDeleteId(null);
+            setViewMode("create");
+          }}
+        >
+          <strong>{t.newExperiment}</strong>
+        </button>
 
-            <label>
-              {t.dimension}
-              <select
-                disabled={locked}
-                value={form.dimension}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    dimension: e.target.value as JobConfig["dimension"],
-                    initial_shape: e.target.value === "2d" ? "circle" : "sphere"
-                  }))
-                }
-              >
-                <option value="3d">3D</option>
-                <option value="2d">2D</option>
-              </select>
-            </label>
-
-            <label>
-              {t.algorithm}
-              <select
-                disabled={locked}
-                value={form.algorithm}
-                onChange={(e) =>
-                  setForm((prev) => patchDefaults({ ...prev, algorithm: e.target.value as JobConfig["algorithm"] }))
-                }
-              >
-                <option value="original">original</option>
-                <option value="ns">NS</option>
-                <option value="rv">RV</option>
-              </select>
-            </label>
-
-            <label className="field-span-2">
-              {t.initialShape}
-              <select
-                disabled={locked}
-                value={form.initial_shape}
-                onChange={(e) => setForm((prev) => ({ ...prev, initial_shape: e.target.value }))}
-              >
-                {shapes.map((shape: any) => (
-                  <option key={shape.key} value={shape.key}>
-                    {shape.label}
-                    {shape.experimental ? ` (${t.experimental})` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="shape-preview-card field-span-2">
-              <img className="shape-preview-image" src={shapePreview} alt={`${form.initial_shape} preview`} />
-              <div className="shape-preview-meta">
-                <strong>{selectedShape?.label ?? form.initial_shape}</strong>
-                <span>{form.dimension.toUpperCase()} {t.shapePreview}</span>
-                <span>{selectedShape?.experimental ? t.shapeExperimental : t.shapeStable}</span>
-              </div>
+        <div className="nav-section">
+          <h3>{t.runningQueue}</h3>
+          {runningExperiments.length ? (
+            <div className="running-list nav-list">
+              {runningExperiments.map((job) => (
+                <div
+                  key={job.id}
+                  className={`running-item ${selectedExperimentId === job.id ? "active" : ""}`}
+                >
+                  <button
+                  className="history-main"
+                  onClick={() => {
+                      setPendingDeleteId(null);
+                      setViewMode("experiment");
+                      setSelectedExperimentId(job.id);
+                    }}
+                  >
+                    <strong>
+                      {job.config.dimension.toUpperCase()} / {job.config.algorithm} / {job.config.initial_shape}
+                    </strong>
+                    <span>
+                      {formatTarget(job.config)} · it={job.summary.iteration ?? "-"}
+                    </span>
+                    <span>{job.summary.stage ?? String(job.meta.status ?? "running")}</span>
+                  </button>
+                  <button
+                    className="history-delete danger"
+                    disabled={busy}
+                    onClick={() => void handleStop(job.id)}
+                  >
+                    {t.stopJob}
+                  </button>
+                </div>
+              ))}
             </div>
-
-            <label>
-              {t.objectiveMode}
-              <select
-                disabled={locked}
-                value={form.objective_mode}
-                onChange={(e) => setForm((prev) => ({ ...prev, objective_mode: e.target.value as JobConfig["objective_mode"] }))}
-              >
-                {objectiveModes.map((mode: any) => {
-                  const supported =
-                    mode.key === "K" ? true :
-                    mode.key === "C" ? supportsC :
-                    false;
-                  return (
-                    <option key={mode.key} value={mode.key} disabled={!supported || !mode.enabled}>
-                      {mode.key}
-                      {!supported || !mode.enabled ? ` (${t.unavailable})` : ""}
-                    </option>
-                  );
-                })}
-              </select>
-            </label>
-
-            <label>
-              {t.objectiveSense}
-              <select
-                disabled={locked}
-                value={form.objective_sense}
-                onChange={(e) => setForm((prev) => ({ ...prev, objective_sense: e.target.value as JobConfig["objective_sense"] }))}
-              >
-                {objectiveSenses.map((sense: string) => (
-                  <option key={sense} value={sense} disabled={sense === "max" && !supportsObjectiveSense}>
-                    {sense}
-                    {sense === "max" && !supportsObjectiveSense ? ` (${t.unavailable})` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </div>
-
-        <div className="param-section">
-          <div className="param-section-title">{t.solver}</div>
-          <div className="notice compact">{t.currentTarget}: {form.objective_mode}_{form.i_axis}{form.j_axis}</div>
-          <div className="param-grid">
-            <label>
-              {t.axisI}
-              <select
-                disabled={locked}
-                value={form.i_axis}
-                onChange={(e) => setForm((prev) => ({ ...prev, i_axis: Number(e.target.value) }))}
-              >
-                {axisOptions.map((axis) => (
-                  <option key={`i-${axis}`} value={axis}>
-                    {axis}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              {t.axisJ}
-              <select
-                disabled={locked}
-                value={form.j_axis}
-                onChange={(e) => setForm((prev) => ({ ...prev, j_axis: Number(e.target.value) }))}
-              >
-                {axisOptions.map((axis) => (
-                  <option key={`j-${axis}`} value={axis}>
-                    {axis}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              Step k
-              <input
-                disabled={locked}
-                type="number"
-                step="0.01"
-                value={form.step_k}
-                onChange={(e) => setForm((prev) => ({ ...prev, step_k: Number(e.target.value) }))}
-              />
-            </label>
-
-            <label>
-              {t.maxIters}
-              <input
-                disabled={locked}
-                type="number"
-                value={form.max_iters}
-                onChange={(e) => setForm((prev) => ({ ...prev, max_iters: Number(e.target.value) }))}
-              />
-            </label>
-
-            {form.algorithm === "original" && (
-              <label>
-                AL penalty
-                <input
-                  disabled={locked}
-                  type="number"
-                  value={form.penalty ?? 100}
-                  onChange={(e) => setForm((prev) => ({ ...prev, penalty: Number(e.target.value) }))}
-                />
-              </label>
-            )}
-
-            {form.algorithm === "rv" && (
-              <>
-                <label>
-                  penalty V
-                  <input
-                    disabled={locked}
-                    type="number"
-                    value={form.penalty_v ?? 5000}
-                    onChange={(e) => setForm((prev) => ({ ...prev, penalty_v: Number(e.target.value) }))}
-                  />
-                </label>
-                <label>
-                  penalty Nu
-                  <input
-                    disabled={locked}
-                    type="number"
-                    value={form.penalty_nu ?? 5000}
-                    onChange={(e) => setForm((prev) => ({ ...prev, penalty_nu: Number(e.target.value) }))}
-                  />
-                </label>
-              </>
-            )}
-
-            <label className="inline-checkbox">
-              <input
-                type="checkbox"
-                checked={form.conservative_preset}
-                onChange={(e) => setForm((prev) => ({ ...prev, conservative_preset: e.target.checked }))}
-              />
-              {t.conservative}
-            </label>
-          </div>
-        </div>
-
-        <div className="param-section">
-          <div className="param-section-title">{t.render}</div>
-          <div className="param-grid">
-            <label>
-              {t.camera}
-              <select
-                value={form.camera_preset}
-                onChange={(e) => setForm((prev) => ({ ...prev, camera_preset: e.target.value as any }))}
-              >
-                {cameraOptions.map((item: string) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              FPS
-              <input type="number" value={form.fps} onChange={(e) => setForm((prev) => ({ ...prev, fps: Number(e.target.value) }))} />
-            </label>
-
-            <label>
-              Width
-              <input type="number" value={form.width} onChange={(e) => setForm((prev) => ({ ...prev, width: Number(e.target.value) }))} />
-            </label>
-
-            <label>
-              Height
-              <input type="number" value={form.height} onChange={(e) => setForm((prev) => ({ ...prev, height: Number(e.target.value) }))} />
-            </label>
-
-            <label className="field-span-2">
-              Color
-              <input value={form.color_by} onChange={(e) => setForm((prev) => ({ ...prev, color_by: e.target.value }))} />
-            </label>
-
-            <label className="inline-checkbox">
-              <input
-                type="checkbox"
-                checked={form.show_edges}
-                onChange={(e) => setForm((prev) => ({ ...prev, show_edges: e.target.checked }))}
-              />
-              {t.showEdges}
-            </label>
-          </div>
-        </div>
-
-        <div className="param-section">
-          <div className="param-section-title">{t.advanced}</div>
-          <div className="param-grid">
-            <label>
-              hmax
-              <input
-                disabled={locked}
-                type="number"
-                step="0.01"
-                value={form.hmax}
-                onChange={(e) => setForm((prev) => ({ ...prev, hmax: Number(e.target.value) }))}
-              />
-            </label>
-
-            <label>
-              hmin_ratio
-              <input
-                disabled={locked}
-                type="number"
-                step="0.01"
-                value={form.hmin_ratio}
-                onChange={(e) => setForm((prev) => ({ ...prev, hmin_ratio: Number(e.target.value) }))}
-              />
-            </label>
-
-            <label>
-              hausd_ratio
-              <input
-                disabled={locked}
-                type="number"
-                step="0.01"
-                value={form.hausd_ratio}
-                onChange={(e) => setForm((prev) => ({ ...prev, hausd_ratio: Number(e.target.value) }))}
-              />
-            </label>
-          </div>
-        </div>
-
-        <div className="button-row actions-row">
-          <button disabled={busy || locked} onClick={() => void handleStart()}>
-            {t.start}
-          </button>
-          <button disabled={busy || !locked} className="danger" onClick={() => void handleStop()}>
-            {t.stop}
-          </button>
-          <button disabled={busy} className="secondary" onClick={() => void handlePresetSave()}>
-            {t.savePreset}
-          </button>
-        </div>
-
-        {message && <div className="notice">{message}</div>}
-      </aside>
-
-      <main className="panel workspace">
-        <div className="section-header">
-          <h2>{t.runningPreview}</h2>
-          <p>{currentExperiment ? t.running : t.idle}</p>
-        </div>
-
-        <div className="status-grid">
-          <div className="metric">
-            <span>{t.metrics.iteration}</span>
-            <strong>{activeDetail?.summary?.iteration ?? "-"}</strong>
-          </div>
-          <div className="metric">
-            <span>{t.metrics.objective}</span>
-            <strong>{activeDetail?.summary?.objective?.toFixed?.(6) ?? "-"}</strong>
-          </div>
-          <div className="metric">
-            <span>{t.metrics.volume}</span>
-            <strong>{activeDetail?.summary?.volume?.toFixed?.(6) ?? "-"}</strong>
-          </div>
-          <div className="metric">
-            <span>{t.metrics.stage}</span>
-            <strong>{activeDetail?.summary?.stage ?? "-"}</strong>
-          </div>
-        </div>
-
-        <div className="video-card">
-          <div className="video-toolbar">
-            <div>
-              <h3>动画预览</h3>
-              <p className="toolbar-subtitle">{t.previewNote}</p>
-            </div>
-            <div className="button-row">
-              <button disabled={busy || !currentExperiment} onClick={() => void handleRender(false)}>
-                {t.refreshPreview}
-              </button>
-              <button
-                disabled={busy || !(currentExperiment || selectedExperimentId)}
-                className="secondary"
-                onClick={() => void handleRender(true, selectedExperimentId ?? undefined)}
-              >
-                {t.renderFinal}
-              </button>
-            </div>
-          </div>
-
-          <div className="camera-strip">
-            {cameraOptions.map((item: string) => (
-              <button
-                key={item}
-                className={`camera-chip ${form.camera_preset === item ? "active" : ""}`}
-                onClick={() => setForm((prev) => ({ ...prev, camera_preset: item as any }))}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-
-          {activeCameraUrl ? (
-            <video key={activeCameraUrl} controls autoPlay muted loop src={activeCameraUrl} />
           ) : (
-            <div className="placeholder">{t.noPreview}</div>
+            <div className="placeholder">{t.noRunningJobs}</div>
           )}
         </div>
 
-        <div className="chart-grid">
-          <div className="chart-card">
-            <h3>{t.objectiveCurve}</h3>
-            {objectiveSeries?.rows?.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={objectiveSeries.rows}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey={objectiveSeries.columns[0]} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey={objectiveSeries.columns[1]} stroke="#1043d9" dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="placeholder">{t.noObjective}</div>
-            )}
-          </div>
-
-          <div className="chart-card">
-            <h3>{t.volumeCurve}</h3>
-            {volumeSeries?.rows?.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={volumeSeries.rows}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey={volumeSeries.columns[0]} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey={volumeSeries.columns[1]} stroke="#d95f02" dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="placeholder">{t.noVolume}</div>
-            )}
-          </div>
-        </div>
-      </main>
-
-      <aside className="panel sidebar rightbar">
-        <div className="section-header">
-          <h2>{t.logsHistory}</h2>
-          <p>{currentError || experimentsError || ""}</p>
-        </div>
-
-        {activeDetail?.diagnostics?.length ? (
-          <div className="diagnostics">
-            {activeDetail.diagnostics.map((item) => (
-              <div key={item.title} className="diagnostic">
-                <strong>{item.title}</strong>
-                <p>{item.message}</p>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="log-box">
-          <h3>{t.latestLog}</h3>
-          <pre>{activeDetail?.log_tail || t.noLog}</pre>
-        </div>
-
-        <div className="history-box">
-          <h3>{t.experiments}</h3>
-          <div className="history-list">
+        <div className="nav-section">
+          <h3>{t.recentExperiments}</h3>
+          <div className="history-list nav-list">
             {experimentsData?.map((experiment) => (
               <div
                 key={experiment.id}
@@ -941,18 +619,18 @@ export default function App() {
                   className="history-main"
                   onClick={() => {
                     setPendingDeleteId(null);
-                    void loadExperiment(experiment.id);
+                    setViewMode("experiment");
+                    setSelectedExperimentId(experiment.id);
                   }}
                 >
-                  <strong>{experiment.id}</strong>
-                  <span>
+                  <strong>
                     {experiment.config.dimension.toUpperCase()} / {experiment.config.algorithm} / {experiment.config.initial_shape}
-                  </span>
-                  <span>J={experiment.summary.objective ?? "-"}</span>
+                  </strong>
+                  <span>{formatTarget(experiment.config)}</span>
                 </button>
                 <button
                   className="history-delete danger"
-                  disabled={busy || currentExperiment?.id === experiment.id}
+                  disabled={busy || runningIds.has(experiment.id)}
                   onClick={() => void handleDeleteExperiment(experiment.id)}
                 >
                   {pendingDeleteId === experiment.id ? t.confirmDelete : t.delete}
@@ -961,8 +639,374 @@ export default function App() {
             ))}
           </div>
         </div>
-
       </aside>
+
+      <main className="panel workspace">
+        {viewMode === "create" ? (
+          <div className="param-panel">
+            <div className="section-header">
+              <h2>{t.newExperiment}</h2>
+            </div>
+
+            <div className="param-section">
+              <div className="param-section-title">{t.model}</div>
+              <div className="param-grid">
+                <label className="field-span-2">
+                  {t.preset}
+                  <select onChange={(e) => handlePresetLoad(e.target.value)} defaultValue="">
+                    <option value="">{t.choosePreset}</option>
+                    {presets.map((preset: any) => (
+                      <option key={preset.name} value={preset.name}>
+                        {preset.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  {t.dimension}
+                  <select
+                    disabled={busy}
+                    value={form.dimension}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        dimension: e.target.value as JobConfig["dimension"],
+                        initial_shape: e.target.value === "2d" ? "circle" : "sphere"
+                      }))
+                    }
+                  >
+                    <option value="3d">3D</option>
+                    <option value="2d">2D</option>
+                  </select>
+                </label>
+
+                <label>
+                  {t.algorithm}
+                  <select
+                    disabled={busy}
+                    value={form.algorithm}
+                    onChange={(e) =>
+                      setForm((prev) => patchDefaults({ ...prev, algorithm: e.target.value as JobConfig["algorithm"] }))
+                    }
+                  >
+                    <option value="original">original</option>
+                    <option value="ns">NS</option>
+                    <option value="rv">RV</option>
+                  </select>
+                </label>
+
+                <label className="field-span-2">
+                  {t.initialShape}
+                  <select
+                    disabled={busy}
+                    value={form.initial_shape}
+                    onChange={(e) => setForm((prev) => ({ ...prev, initial_shape: e.target.value }))}
+                  >
+                    {shapes.map((shape: any) => (
+                      <option key={shape.key} value={shape.key}>
+                        {shape.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="shape-preview-card field-span-2">
+                  <img
+                    className="shape-preview-image"
+                    src={shapePreviewFailed ? shapePreviewSvgUrl : shapePreviewImage}
+                    alt={`${form.initial_shape} preview`}
+                    onError={() => setShapePreviewFailed(true)}
+                  />
+                  <div className="shape-preview-meta">
+                    <strong>{selectedShape?.label ?? form.initial_shape}</strong>
+                    <span>{form.dimension.toUpperCase()} {t.shapePreview}</span>
+                  </div>
+                </div>
+
+                <label>
+                  {t.objectiveMode}
+                  <select
+                    disabled={busy}
+                    value={form.objective_mode}
+                    onChange={(e) => setForm((prev) => ({ ...prev, objective_mode: e.target.value as JobConfig["objective_mode"] }))}
+                  >
+                    {objectiveModes.map((mode: any) => {
+                      const supported =
+                        mode.key === "K" ? true :
+                        mode.key === "C" ? supportsC :
+                        mode.key === "Q" ? supportsQ :
+                        false;
+                      return (
+                        <option key={mode.key} value={mode.key} disabled={!supported || !mode.enabled}>
+                          {mode.key}
+                          {!supported || !mode.enabled ? ` (${t.unavailable})` : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+
+                <label>
+                  {t.objectiveSense}
+                  <select
+                    disabled={busy}
+                    value={form.objective_sense}
+                    onChange={(e) => setForm((prev) => ({ ...prev, objective_sense: e.target.value as JobConfig["objective_sense"] }))}
+                  >
+                    {objectiveSenses.map((sense: string) => (
+                      <option key={sense} value={sense} disabled={sense === "max" && !supportsObjectiveSense}>
+                        {sense}
+                        {sense === "max" && !supportsObjectiveSense ? ` (${t.unavailable})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div className="param-section">
+              <div className="param-section-title">{t.solver}</div>
+              <div className="notice compact">{t.currentTarget}: {formatTarget(form)}</div>
+              <div className="param-grid">
+                <label>
+                  {t.axisI}
+                  <select disabled={busy} value={form.i_axis} onChange={(e) => setForm((prev) => ({ ...prev, i_axis: Number(e.target.value) }))}>
+                    {axisOptions.map((axis) => (
+                      <option key={`i-${axis}`} value={axis}>{axis}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  {t.axisJ}
+                  <select disabled={busy} value={form.j_axis} onChange={(e) => setForm((prev) => ({ ...prev, j_axis: Number(e.target.value) }))}>
+                    {axisOptions.map((axis) => (
+                      <option key={`j-${axis}`} value={axis}>{axis}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Step k
+                  <input disabled={busy} type="number" step="0.01" value={form.step_k} onChange={(e) => setForm((prev) => ({ ...prev, step_k: Number(e.target.value) }))} />
+                </label>
+
+                <label>
+                  {t.maxIters}
+                  <input disabled={busy} type="number" value={form.max_iters} onChange={(e) => setForm((prev) => ({ ...prev, max_iters: Number(e.target.value) }))} />
+                </label>
+
+                {form.algorithm === "original" && (
+                  <label>
+                    AL penalty
+                    <input disabled={busy} type="number" value={form.penalty ?? 100} onChange={(e) => setForm((prev) => ({ ...prev, penalty: Number(e.target.value) }))} />
+                  </label>
+                )}
+
+                {form.algorithm === "rv" && (
+                  <>
+                    <label>
+                      penalty V
+                      <input disabled={busy} type="number" value={form.penalty_v ?? 5000} onChange={(e) => setForm((prev) => ({ ...prev, penalty_v: Number(e.target.value) }))} />
+                    </label>
+                    <label>
+                      penalty Nu
+                      <input disabled={busy} type="number" value={form.penalty_nu ?? 5000} onChange={(e) => setForm((prev) => ({ ...prev, penalty_nu: Number(e.target.value) }))} />
+                    </label>
+                  </>
+                )}
+
+                <label className="inline-checkbox">
+                  <input type="checkbox" checked={form.conservative_preset} onChange={(e) => setForm((prev) => ({ ...prev, conservative_preset: e.target.checked }))} />
+                  {t.conservative}
+                </label>
+              </div>
+            </div>
+
+            <div className="param-section">
+              <div className="param-section-title">{t.render}</div>
+              <div className="param-grid">
+                <label>
+                  {t.camera}
+                  <select value={form.camera_preset} onChange={(e) => setForm((prev) => ({ ...prev, camera_preset: e.target.value as any }))}>
+                    {cameraOptions.map((item: string) => (
+                      <option key={item} value={item}>{item}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  FPS
+                  <input type="number" value={form.fps} onChange={(e) => setForm((prev) => ({ ...prev, fps: Number(e.target.value) }))} />
+                </label>
+
+                <label>
+                  Width
+                  <input type="number" value={form.width} onChange={(e) => setForm((prev) => ({ ...prev, width: Number(e.target.value) }))} />
+                </label>
+
+                <label>
+                  Height
+                  <input type="number" value={form.height} onChange={(e) => setForm((prev) => ({ ...prev, height: Number(e.target.value) }))} />
+                </label>
+
+                <label className="field-span-2">
+                  Color
+                  <input value={form.color_by} onChange={(e) => setForm((prev) => ({ ...prev, color_by: e.target.value }))} />
+                </label>
+
+                <label className="inline-checkbox">
+                  <input type="checkbox" checked={form.show_edges} onChange={(e) => setForm((prev) => ({ ...prev, show_edges: e.target.checked }))} />
+                  {t.showEdges}
+                </label>
+              </div>
+            </div>
+
+            <div className="param-section">
+              <div className="param-section-title">{t.advanced}</div>
+              <div className="param-grid">
+                <label>
+                  hmax
+                  <input disabled={busy} type="number" step="0.01" value={form.hmax} onChange={(e) => setForm((prev) => ({ ...prev, hmax: Number(e.target.value) }))} />
+                </label>
+
+                <label>
+                  hmin_ratio
+                  <input disabled={busy} type="number" step="0.01" value={form.hmin_ratio} onChange={(e) => setForm((prev) => ({ ...prev, hmin_ratio: Number(e.target.value) }))} />
+                </label>
+
+                <label>
+                  hausd_ratio
+                  <input disabled={busy} type="number" step="0.01" value={form.hausd_ratio} onChange={(e) => setForm((prev) => ({ ...prev, hausd_ratio: Number(e.target.value) }))} />
+                </label>
+              </div>
+            </div>
+
+            <div className="button-row actions-row">
+              <button disabled={busy} onClick={() => void handleStart()}>
+                {t.start}
+              </button>
+              <button disabled={busy} className="secondary" onClick={() => void handlePresetSave()}>
+                {t.savePreset}
+              </button>
+            </div>
+
+            {message && <div className="notice">{message}</div>}
+          </div>
+        ) : (
+        <div className="detail-stack">
+          <div className="status-grid">
+            <div className="metric">
+              <span>{t.metrics.iteration}</span>
+              <strong>{activeDetail?.summary?.iteration ?? "-"}</strong>
+            </div>
+            <div className="metric">
+              <span>{t.metrics.objective}</span>
+              <strong>{activeDetail?.summary?.objective?.toFixed?.(6) ?? "-"}</strong>
+            </div>
+            <div className="metric">
+              <span>{t.metrics.volume}</span>
+              <strong>{activeDetail?.summary?.volume?.toFixed?.(6) ?? "-"}</strong>
+            </div>
+            <div className="metric">
+              <span>{t.metrics.stage}</span>
+              <strong>{activeDetail?.summary?.stage ?? "-"}</strong>
+            </div>
+          </div>
+
+          {activeDetail?.diagnostics?.length ? (
+            <div className="diagnostics">
+              {activeDetail.diagnostics.map((item) => (
+                <div key={item.title} className="diagnostic">
+                  <strong>{item.title}</strong>
+                  <p>{item.message}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="video-card">
+            <div className="video-toolbar">
+              <div>
+                <h3>{t.animationPreview}</h3>
+                <p className="toolbar-subtitle">{t.previewNote}</p>
+              </div>
+              <div className="button-row">
+                <button disabled={busy || !selectedExperimentId} onClick={() => void handleRender(false)}>
+                  {t.refreshPreview}
+                </button>
+                <button disabled={busy || !selectedExperimentId} className="secondary" onClick={() => void handleRender(true)}>
+                  {t.renderFinal}
+                </button>
+              </div>
+            </div>
+
+            <div className="camera-strip">
+              {cameraOptions.map((item: string) => (
+                <button
+                  key={item}
+                  className={`camera-chip ${form.camera_preset === item ? "active" : ""}`}
+                  onClick={() => setForm((prev) => ({ ...prev, camera_preset: item as any }))}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+
+            {activeCameraUrl ? (
+              <video key={activeCameraUrl} controls autoPlay muted loop src={activeCameraUrl} />
+            ) : (
+              <div className="placeholder">{t.noPreview}</div>
+            )}
+          </div>
+
+          <div className="chart-grid">
+            <div className="chart-card">
+              <h3>{t.objectiveCurve}</h3>
+              {objectiveSeries?.rows?.length ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <LineChart data={objectiveSeries.rows}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey={objectiveSeries.columns[0]} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey={objectiveSeries.columns[1]} stroke="#1043d9" dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="placeholder">{t.noObjective}</div>
+              )}
+            </div>
+
+            <div className="chart-card">
+              <h3>{t.volumeCurve}</h3>
+              {volumeSeries?.rows?.length ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <LineChart data={volumeSeries.rows}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey={volumeSeries.columns[0]} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey={volumeSeries.columns[1]} stroke="#d95f02" dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="placeholder">{t.noVolume}</div>
+              )}
+            </div>
+          </div>
+
+          <div className="log-box">
+            <h3>{t.latestLog}</h3>
+            <pre>{activeDetail?.log_tail || t.noLog}</pre>
+          </div>
+          {message && <div className="notice">{message}</div>}
+        </div>
+        )}
+      </main>
     </div>
   );
 }

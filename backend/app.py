@@ -128,6 +128,24 @@ SHAPES: dict[str, list[dict[str, Any]]] = {
             "experimental": True,
         },
         {
+            "key": "rounded_three_lobe",
+            "label": "Rounded Three Lobe",
+            "mesh": str(RODIN_DIR / "examples/PETSc/LevelSetStokes/3dshapes/rounded_three_lobe_init.mesh"),
+            "experimental": False,
+        },
+        {
+            "key": "rounded_four_lobe",
+            "label": "Rounded Four Lobe",
+            "mesh": str(RODIN_DIR / "examples/PETSc/LevelSetStokes/3dshapes/rounded_four_lobe_init.mesh"),
+            "experimental": False,
+        },
+        {
+            "key": "seven_lobe_star",
+            "label": "Seven Lobe Star",
+            "mesh": str(RODIN_DIR / "examples/PETSc/LevelSetStokes/3dshapes/seven_lobe_star_init.mesh"),
+            "experimental": True,
+        },
+        {
             "key": "dumbbell",
             "label": "Dumbbell",
             "mesh": str(RODIN_DIR / "examples/PETSc/LevelSetStokes/3dshapes/dumbbell_init.mesh"),
@@ -321,6 +339,13 @@ def write_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
+ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+
+
+def strip_ansi(text: str) -> str:
+    return ANSI_ESCAPE_RE.sub("", text)
+
+
 def slugify(value: str) -> str:
     value = re.sub(r"[^a-zA-Z0-9_-]+", "-", value.strip()).strip("-").lower()
     return value or "experiment"
@@ -347,6 +372,8 @@ def supports_objective_mode(config: JobConfig) -> bool:
         return True
     if config.objective_mode == "C":
         return config.algorithm == "original" or config.algorithm == "ns"
+    if config.objective_mode == "Q":
+        return config.dimension == "3d" and (config.algorithm == "original" or config.algorithm == "ns")
     return False
 
 
@@ -421,7 +448,7 @@ def tail_lines(path: Path, limit: int = 200) -> str:
     if not path.exists():
         return ""
     lines = path.read_text(errors="replace").splitlines()
-    return "\n".join(lines[-limit:])
+    return strip_ansi("\n".join(lines[-limit:]))
 
 
 def extract_diagnostics(log_text: str) -> list[dict[str, str]]:
@@ -434,7 +461,7 @@ def extract_diagnostics(log_text: str) -> list[dict[str, str]]:
 
 def extract_runtime_summary(log_text: str, series: dict[str, Any]) -> dict[str, Any]:
     iteration_matches = re.findall(r"Iteration:\s*(\d+)", log_text)
-    objective_matches = re.findall(r"Objective:\s*([^\s]+)", log_text)
+    objective_matches = re.findall(r"Objective(?: raw)?:\s*([^\s,]+)", log_text)
     stage_matches = re.findall(r"Info:\s+\|\s+([^\n]+)", log_text)
     summary = {
         "iteration": int(iteration_matches[-1]) if iteration_matches else None,
@@ -562,7 +589,7 @@ def animation_env(input_path: Path, output_path: Path, camera: str, config: dict
 
 
 @dataclass
-class CurrentJob:
+class RunningJob:
     experiment_id: str
     experiment_dir: Path
     config: dict[str, Any]
@@ -579,7 +606,7 @@ class CurrentJob:
 
 class JobManager:
     def __init__(self) -> None:
-        self.current: CurrentJob | None = None
+        self.jobs: dict[str, RunningJob] = {}
         self.lock = threading.RLock()
 
     def _meta_path(self, experiment_dir: Path) -> Path:
@@ -592,9 +619,6 @@ class JobManager:
 
     def start(self, config: JobConfig) -> dict[str, Any]:
         with self.lock:
-            if self.current and self.current.process.poll() is None:
-                raise HTTPException(status_code=409, detail="A job is already running.")
-
             shape = resolve_shape(config)
             target_info = resolve_target(config)
             target = target_info["target"]
@@ -609,7 +633,6 @@ class JobManager:
             config_payload = config.model_dump()
             config_payload["mesh_path"] = shape["mesh"]
             config_payload["initial_shape_label"] = shape["label"]
-            config_payload["objective_mode"] = "K"
             write_json(experiment_dir / "config.json", config_payload)
             self._write_meta(
                 experiment_dir,
@@ -633,7 +656,7 @@ class JobManager:
                 env=env,
             )
 
-            self.current = CurrentJob(
+            job = RunningJob(
                 experiment_id=experiment_id,
                 experiment_dir=experiment_dir,
                 config=config_payload,
@@ -642,21 +665,22 @@ class JobManager:
                 log_handle=log_handle,
                 started_at=now_iso(),
             )
+            self.jobs[experiment_id] = job
+            return read_experiment(experiment_dir)
 
-            return self.status()
-
-    def stop(self) -> dict[str, Any]:
+    def stop(self, experiment_id: str) -> dict[str, Any]:
         with self.lock:
-            if not self.current or self.current.process.poll() is not None:
+            job = self.jobs.get(experiment_id)
+            if not job or job.process.poll() is not None:
                 raise HTTPException(status_code=404, detail="No running job.")
-            self.current.process.terminate()
+            job.process.terminate()
             try:
-                self.current.process.wait(timeout=5)
+                job.process.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                self.current.process.kill()
-                self.current.process.wait(timeout=5)
-            self._finalize_current("stopped")
-            return {"status": "stopped"}
+                job.process.kill()
+                job.process.wait(timeout=5)
+            self._finalize_job(experiment_id, "stopped")
+            return {"status": "stopped", "id": experiment_id}
 
     def _render_animation(self, experiment_dir: Path, config: dict[str, Any], target_info: dict[str, Any], camera: str, preview: bool) -> None:
         xdmf_path = experiment_dir / "out" / target_info["xdmf"]
@@ -671,7 +695,7 @@ class JobManager:
             env=animation_env(xdmf_path, output_path, camera, config, preview=preview),
         )
 
-    def _maybe_start_preview(self, job: CurrentJob, iteration: int | None) -> None:
+    def _maybe_start_preview(self, job: RunningJob, iteration: int | None) -> None:
         xdmf_path = job.experiment_dir / "out" / job.target_info["xdmf"]
         if not xdmf_path.exists():
             return
@@ -693,10 +717,10 @@ class JobManager:
             )
             job.preview_thread.start()
 
-    def _finalize_current(self, status: str) -> None:
-        if not self.current:
+    def _finalize_job(self, experiment_id: str, status: str) -> None:
+        job = self.jobs.get(experiment_id)
+        if not job:
             return
-        job = self.current
         if not job.log_handle.closed:
             job.log_handle.flush()
             job.log_handle.close()
@@ -716,24 +740,31 @@ class JobManager:
             )
             thread.start()
             job.final_thread = thread
-        self.current = None
+        self.jobs.pop(experiment_id, None)
 
-    def status(self) -> dict[str, Any]:
+    def status(self, focus_experiment_id: str | None = None) -> dict[str, Any]:
         with self.lock:
-            if not self.current:
-                return {"current": None}
+            running: list[dict[str, Any]] = []
+            for experiment_id, job in list(self.jobs.items()):
+                code = job.process.poll()
+                if code is not None:
+                    status = "finished" if code == 0 else "failed"
+                    self._finalize_job(experiment_id, status)
+                    continue
 
-            job = self.current
-            code = job.process.poll()
-            if code is not None:
-                status = "finished" if code == 0 else "failed"
-                self._finalize_current(status)
-                return {"current": None}
+                data = read_experiment(job.experiment_dir)
+                if focus_experiment_id == experiment_id:
+                    self._maybe_start_preview(job, data["summary"].get("iteration"))
+                data["meta"]["status"] = "running"
+                running.append(data)
 
-            data = read_experiment(job.experiment_dir)
-            self._maybe_start_preview(job, data["summary"].get("iteration"))
-            data["meta"]["status"] = "running"
-            return {"current": data}
+            running.sort(key=lambda item: item["meta"].get("started_at") or item["meta"].get("created_at") or "", reverse=True)
+            return {"running": running}
+
+    def is_running(self, experiment_id: str) -> bool:
+        with self.lock:
+            job = self.jobs.get(experiment_id)
+            return bool(job and job.process.poll() is None)
 
     def render(self, experiment_id: str, camera: str, final: bool) -> dict[str, Any]:
         experiment_dir = EXPERIMENTS_DIR / experiment_id
@@ -763,7 +794,7 @@ def api_config() -> dict[str, Any]:
         "objective_modes": [
             {"key": "K", "enabled": True},
             {"key": "C", "enabled": True},
-            {"key": "Q", "enabled": False},
+            {"key": "Q", "enabled": True},
         ],
         "objective_senses": ["min", "max"],
         "camera_presets": {
@@ -779,7 +810,7 @@ def api_start_job(config: JobConfig) -> dict[str, Any]:
     if not supports_objective_mode(config):
         raise HTTPException(
             status_code=400,
-            detail="当前组合暂不支持该目标模式。现阶段 C 支持 original 和 NS；Q 尚未实现。",
+            detail="当前组合暂不支持该目标模式。现阶段 C 支持 original 和 NS；Q 仅支持 3D original 和 3D NS。",
         )
     if config.objective_sense == "max" and not supports_objective_sense(config):
         raise HTTPException(
@@ -789,23 +820,21 @@ def api_start_job(config: JobConfig) -> dict[str, Any]:
     return manager.start(config)
 
 
-@app.get("/api/jobs/current")
-def api_current_job() -> dict[str, Any]:
-    return manager.status()
+@app.get("/api/jobs")
+def api_jobs(focus: str | None = None) -> dict[str, Any]:
+    return manager.status(focus_experiment_id=focus)
 
 
-@app.post("/api/jobs/current/stop")
-def api_stop_job() -> dict[str, Any]:
-    return manager.stop()
+@app.post("/api/jobs/{experiment_id}/stop")
+def api_stop_job(experiment_id: str) -> dict[str, Any]:
+    return manager.stop(experiment_id)
 
 
-@app.post("/api/jobs/current/render")
-def api_render_current(request: RenderRequest) -> dict[str, Any]:
-    status = manager.status()
-    current = status.get("current")
-    if not current:
-        raise HTTPException(status_code=404, detail="No running job.")
-    return manager.render(current["id"], request.camera_preset, request.final)
+@app.post("/api/jobs/{experiment_id}/render")
+def api_render_running(experiment_id: str, request: RenderRequest) -> dict[str, Any]:
+    if not manager.is_running(experiment_id):
+        raise HTTPException(status_code=404, detail="Job is not running.")
+    return manager.render(experiment_id, request.camera_preset, request.final)
 
 
 @app.get("/api/experiments")
@@ -826,7 +855,7 @@ def api_delete_experiment(experiment_id: str) -> dict[str, Any]:
     path = EXPERIMENTS_DIR / experiment_id
     if not path.exists():
         raise HTTPException(status_code=404, detail="Experiment not found.")
-    if manager.current and manager.current.experiment_id == experiment_id and manager.current.process.poll() is None:
+    if manager.is_running(experiment_id):
         raise HTTPException(status_code=409, detail="Cannot delete a running experiment.")
     shutil.rmtree(path)
     return {"ok": True}
