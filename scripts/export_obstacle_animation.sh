@@ -20,6 +20,10 @@ fi
 
 export INPUT OUTPUT FPS WIDTH HEIGHT REGION COLOR_BY SHOW_EDGES CAMERA_PRESET
 
+if [[ "$COLOR_BY" == "adjacent_displacement" ]]; then
+  exec python3 "${SCRIPT_DIR}/export_adjacent_displacement_animation.py"
+fi
+
 if ! command -v pvpython >/dev/null 2>&1; then
   echo "pvpython not found in PATH." >&2
   exit 1
@@ -33,7 +37,37 @@ fi
 export LIBGL_ALWAYS_SOFTWARE="${LIBGL_ALWAYS_SOFTWARE:-1}"
 export PV_OFFSCREEN="${PV_OFFSCREEN:-1}"
 
-pvpython --force-offscreen-rendering - <<'PY'
+if [[ -z "${DISPLAY:-}" ]]; then
+  if command -v xvfb-run >/dev/null 2>&1; then
+    export LEVELSET_USE_XVFB=1
+  else
+    for socket in /tmp/.X11-unix/X*; do
+      if [[ -S "$socket" ]]; then
+        export DISPLAY=":${socket##*/X}"
+        break
+      fi
+    done
+  fi
+fi
+
+if [[ -z "${XAUTHORITY:-}" ]]; then
+  if [[ -f "/run/user/$(id -u)/gdm/Xauthority" ]]; then
+    export XAUTHORITY="/run/user/$(id -u)/gdm/Xauthority"
+  elif [[ -f "${HOME}/.Xauthority" ]]; then
+    export XAUTHORITY="${HOME}/.Xauthority"
+  fi
+fi
+
+if [[ -z "${DISPLAY:-}" && -z "${LEVELSET_USE_XVFB:-}" ]]; then
+  echo "No DISPLAY available and xvfb-run is not installed." >&2
+  exit 1
+fi
+PV_CMD=(pvpython --force-offscreen-rendering -)
+if [[ "${LEVELSET_USE_XVFB:-0}" == "1" ]]; then
+  PV_CMD=(xvfb-run -a "${PV_CMD[@]}")
+fi
+
+"${PV_CMD[@]}" <<'PY'
 from __future__ import annotations
 
 import os

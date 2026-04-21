@@ -43,37 +43,36 @@ JOBS = os.environ.get("JOBS") or os.environ.get("LEVELSET_JOBS", "4")
 
 EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
 
+DEFAULT_HMAX = 0.4
+DEFAULT_HMIN_RATIO = 0.1
+DEFAULT_HAUSD_RATIO = 0.1
+PHASE_OBSTACLE = 2
+PHASE_FLUID = 3
+
+ALGORITHM_ALIASES: dict[str, str] = {
+    "v1": "v1",
+    "v2": "v2",
+    "v3": "v3",
+    "original": "v1",
+    "ns": "v2",
+    "test_3DNS_phi_smooth1": "v3",
+}
 
 TARGETS: dict[tuple[str, str], dict[str, Any]] = {
-    ("3d", "original"): {
-        "target": "PETSc_LevelSetStokes3DObstacle",
-        "xdmf": "LevelSetStokes3DObstacle.xdmf",
+    ("3d", "v1"): {
+        "target": "PETSc_3Dv1",
+        "xdmf": "3Dv1.xdmf",
         "history": ["obj.txt", "vol.txt", "al.txt"],
     },
-    ("3d", "ns"): {
-        "target": "PETSc_LevelSetStokes3DObstacle_NS",
-        "xdmf": "LevelSetStokes3DObstacle_NS.xdmf",
+    ("3d", "v2"): {
+        "target": "PETSc_3Dv2",
+        "xdmf": "3Dv2.xdmf",
         "history": ["obj.txt", "vol.txt", "ns.txt"],
     },
-    ("3d", "rv"): {
-        "target": "PETSc_LevelSetStokes3DObstacle_RV",
-        "xdmf": "LevelSetStokes3DObstacle_RV.xdmf",
-        "history": ["obj_rv.txt", "vol_rv.txt", "al_rv.txt"],
-    },
-    ("2d", "original"): {
-        "target": "PETSc_LevelSetStokes2DObstacle",
-        "xdmf": "LevelSetStokes2DObstacle.xdmf",
-        "history": ["obj.txt", "vol.txt", "al.txt"],
-    },
-    ("2d", "ns"): {
-        "target": "PETSc_LevelSetStokes2DObstacle_NS",
-        "xdmf": "LevelSetStokes2DObstacle_NS.xdmf",
+    ("3d", "v3"): {
+        "target": "PETSc_3Dv3",
+        "xdmf": "3Dv3.xdmf",
         "history": ["obj.txt", "vol.txt", "ns.txt"],
-    },
-    ("2d", "rv"): {
-        "target": "PETSc_LevelSetStokes2DObstacle_RV",
-        "xdmf": "LevelSetStokes2DObstacle_RV.xdmf",
-        "history": ["obj_rv.txt", "vol_rv.txt", "al_rv.txt"],
     },
 }
 
@@ -158,49 +157,23 @@ SHAPES: dict[str, list[dict[str, Any]]] = {
             "experimental": True,
         },
     ],
-    "2d": [
-        {
-            "key": "circle",
-            "label": "Circle",
-            "mesh": str(RODIN_DIR / "examples/PETSc/LevelSetStokes/2dshapes/circle_init_2d.mesh"),
-            "experimental": False,
-        },
-        {
-            "key": "annulus",
-            "label": "Annulus",
-            "mesh": str(RODIN_DIR / "examples/PETSc/LevelSetStokes/2dshapes/annulus_init_2d.mesh"),
-            "experimental": True,
-        },
-        {
-            "key": "eccentric_ring",
-            "label": "Eccentric Ring",
-            "mesh": str(RODIN_DIR / "examples/PETSc/LevelSetStokes/2dshapes/eccentric_ring_init_2d.mesh"),
-            "experimental": True,
-        },
-        {
-            "key": "double_hole",
-            "label": "Double Hole",
-            "mesh": str(RODIN_DIR / "examples/PETSc/LevelSetStokes/2dshapes/double_hole_init_2d.mesh"),
-            "experimental": True,
-        },
-    ],
 }
 
 DEFAULT_PRESETS = [
     {
-        "name": "3D-original-sphere",
+        "name": "3D-3Dv1-sphere",
         "config": {
             "dimension": "3d",
-            "algorithm": "original",
+            "algorithm": "v1",
             "initial_shape": "sphere",
             "objective_mode": "K",
             "i_axis": 1,
             "j_axis": 1,
             "max_iters": 20,
             "step_k": 0.1,
-            "hmax": 0.2,
-            "hmin_ratio": 0.1,
-            "hausd_ratio": 0.1,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
             "penalty": 100.0,
             "camera_preset": "isometric",
             "fps": 5,
@@ -211,19 +184,19 @@ DEFAULT_PRESETS = [
         },
     },
     {
-        "name": "3D-ns-prolate",
+        "name": "3D-3Dv2-prolate",
         "config": {
             "dimension": "3d",
-            "algorithm": "ns",
+            "algorithm": "v2",
             "initial_shape": "prolate",
             "objective_mode": "K",
             "i_axis": 1,
             "j_axis": 1,
             "max_iters": 10,
             "step_k": 0.1,
-            "hmax": 0.2,
-            "hmin_ratio": 0.1,
-            "hausd_ratio": 0.1,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
             "camera_preset": "isometric",
             "fps": 5,
             "width": 960,
@@ -233,21 +206,32 @@ DEFAULT_PRESETS = [
         },
     },
     {
-        "name": "2D-original-circle",
+        "name": "3D-3Dv3-sphere",
         "config": {
-            "dimension": "2d",
-            "algorithm": "original",
-            "initial_shape": "circle",
+            "dimension": "3d",
+            "algorithm": "v3",
+            "initial_shape": "sphere",
             "objective_mode": "K",
             "i_axis": 1,
             "j_axis": 1,
             "max_iters": 20,
-            "step_k": 0.1,
-            "hmax": 0.2,
-            "hmin_ratio": 0.1,
-            "hausd_ratio": 0.1,
-            "penalty": 100.0,
-            "camera_preset": "default",
+            "step_k": 0.2,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
+            "convergence_window": 5,
+            "convergence_rtol_jraw": 5e-2,
+            "ns_alpha_j": 0.5,
+            "ns_alpha_c": 0.5,
+            "final_refine": True,
+            "final_hmax_factor": 0.1,
+            "final_hmin_ratio": 0.1,
+            "final_hausd_ratio": 3.0,
+            "final_rmc": 1e-4,
+            "smooth_steps": 1,
+            "smooth_eps_factor": 1.0,
+            "smooth_iso_shift": 0.0,
+            "camera_preset": "isometric",
             "fps": 5,
             "width": 960,
             "height": 540,
@@ -266,7 +250,7 @@ DIAGNOSTICS = [
     {
         "needle": "Point is not contained in the finite element space mesh",
         "title": "网格/场定位失败",
-        "message": "当前界面或初始形状过于激进，边界积分点无法稳定映射到有限元网格。优先尝试更平滑的形状或 original 算法。",
+        "message": "当前界面或初始形状过于激进，边界积分点无法稳定映射到有限元网格。优先尝试更平滑的形状或 3Dv1。",
     },
     {
         "needle": "Failed to open",
@@ -287,8 +271,8 @@ DIAGNOSTICS = [
 
 
 class JobConfig(BaseModel):
-    dimension: Literal["2d", "3d"]
-    algorithm: Literal["original", "ns", "rv"]
+    dimension: Literal["3d"]
+    algorithm: Literal["v1", "v2", "v3"]
     initial_shape: str
     objective_mode: Literal["K", "C", "Q"] = "K"
     objective_sense: Literal["min", "max"] = "min"
@@ -297,13 +281,22 @@ class JobConfig(BaseModel):
     j_axis: int = 1
     max_iters: int = Field(default=20, ge=1, le=500)
     step_k: float = Field(default=0.1, gt=0)
-    hmax: float = Field(default=0.2, gt=0)
-    hmin_ratio: float = Field(default=0.1, gt=0)
-    hausd_ratio: float = Field(default=0.1, gt=0)
+    hmax: float = Field(default=DEFAULT_HMAX, gt=0)
+    hmin_ratio: float = Field(default=DEFAULT_HMIN_RATIO, gt=0)
+    hausd_ratio: float = Field(default=DEFAULT_HAUSD_RATIO, gt=0)
+    convergence_window: int = Field(default=5, ge=2, le=100)
+    convergence_rtol_jraw: float = Field(default=5e-3, gt=0)
+    ns_alpha_j: float = Field(default=0.5, gt=0)
+    ns_alpha_c: float = Field(default=0.5, gt=0)
+    final_refine: bool = True
+    final_hmax_factor: float = Field(default=1.0, gt=0)
+    final_hmin_ratio: float = Field(default=0.1, gt=0)
+    final_hausd_ratio: float = Field(default=3.0, gt=0)
+    final_rmc: float = Field(default=1e-4, gt=0)
+    smooth_steps: int = Field(default=1, ge=1, le=50)
+    smooth_eps_factor: float = Field(default=0.05, gt=0)
+    smooth_iso_shift: float = 0.0
     penalty: float | None = None
-    penalty_v: float | None = None
-    penalty_nu: float | None = None
-    conservative_preset: bool = True
     camera_preset: Literal["default", "front", "side", "top", "isometric"] = "default"
     fps: int = Field(default=5, ge=1, le=60)
     width: int = Field(default=960, ge=320, le=3840)
@@ -320,6 +313,10 @@ class SavePresetRequest(BaseModel):
 class RenderRequest(BaseModel):
     camera_preset: Literal["default", "front", "side", "top", "isometric"] = "default"
     final: bool = False
+
+
+class FavoriteRequest(BaseModel):
+    favorite: bool
 
 
 def now_iso() -> str:
@@ -351,6 +348,14 @@ def slugify(value: str) -> str:
     return value or "experiment"
 
 
+def normalize_config_dict(data: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(data)
+    normalized["dimension"] = "3d"
+    algorithm = str(normalized.get("algorithm", "v1"))
+    normalized["algorithm"] = ALGORITHM_ALIASES.get(algorithm, algorithm)
+    return normalized
+
+
 def resolve_shape(config: JobConfig) -> dict[str, Any]:
     if config.mesh_path:
         return {"key": "custom", "mesh": config.mesh_path, "experimental": True, "label": "Custom Mesh"}
@@ -371,14 +376,14 @@ def supports_objective_mode(config: JobConfig) -> bool:
     if config.objective_mode == "K":
         return True
     if config.objective_mode == "C":
-        return config.algorithm == "original" or config.algorithm == "ns"
+        return config.algorithm in {"v1", "v2", "v3"}
     if config.objective_mode == "Q":
-        return config.dimension == "3d" and (config.algorithm == "original" or config.algorithm == "ns")
+        return config.algorithm in {"v1", "v2", "v3"}
     return False
 
 
 def supports_objective_sense(config: JobConfig) -> bool:
-    return config.algorithm == "original" or config.algorithm == "ns"
+    return config.algorithm in {"v1", "v2", "v3"}
 
 
 def build_env(config: JobConfig, mesh_path: str) -> dict[str, str]:
@@ -393,13 +398,72 @@ def build_env(config: JobConfig, mesh_path: str) -> dict[str, str]:
     env["HMAX"] = str(config.hmax)
     env["HMIN_RATIO"] = str(config.hmin_ratio)
     env["HAUSD_RATIO"] = str(config.hausd_ratio)
-    if config.penalty is not None:
+    if config.algorithm in {"v2", "v3"}:
+        env["CONVERGENCE_WINDOW"] = str(config.convergence_window)
+        env["CONVERGENCE_RTOL_JRAW"] = str(config.convergence_rtol_jraw)
+    if config.algorithm in {"v2", "v3"}:
+        env["NS_ALPHA_J"] = str(config.ns_alpha_j)
+        env["NS_ALPHA_C"] = str(config.ns_alpha_c)
+    if config.algorithm == "v3":
+        env["FINAL_REFINE"] = "1" if config.final_refine else "0"
+        env["FINAL_HMAX_FACTOR"] = str(config.final_hmax_factor)
+        env["FINAL_HMIN_RATIO"] = str(config.final_hmin_ratio)
+        env["FINAL_HAUSD_RATIO"] = str(config.final_hausd_ratio)
+        env["FINAL_RMC"] = str(config.final_rmc)
+        env["SMOOTH_STEPS"] = str(config.smooth_steps)
+        env["SMOOTH_EPS_FACTOR"] = str(config.smooth_eps_factor)
+        env["SMOOTH_ISO_SHIFT"] = str(config.smooth_iso_shift)
+    if config.algorithm == "v1" and config.penalty is not None:
         env["AL_PENALTY"] = str(config.penalty)
-    if config.penalty_v is not None:
-        env["PENALTY_V"] = str(config.penalty_v)
-    if config.penalty_nu is not None:
-        env["PENALTY_NU"] = str(config.penalty_nu)
     return env
+
+
+def used_config_payload(config: JobConfig, resolved_mesh_path: str, initial_shape_label: str) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "dimension": config.dimension,
+        "algorithm": config.algorithm,
+        "initial_shape": config.initial_shape,
+        "initial_shape_label": initial_shape_label,
+        "objective_mode": config.objective_mode,
+        "objective_sense": config.objective_sense,
+        "mesh_path": resolved_mesh_path,
+        "i_axis": config.i_axis,
+        "j_axis": config.j_axis,
+        "max_iters": config.max_iters,
+        "step_k": config.step_k,
+        "hmax": config.hmax,
+        "hmin_ratio": config.hmin_ratio,
+        "hausd_ratio": config.hausd_ratio,
+        "camera_preset": config.camera_preset,
+        "fps": config.fps,
+        "width": config.width,
+        "height": config.height,
+        "color_by": config.color_by,
+        "show_edges": config.show_edges,
+    }
+
+    if config.algorithm in {"v2", "v3"}:
+        payload["convergence_window"] = config.convergence_window
+        payload["convergence_rtol_jraw"] = config.convergence_rtol_jraw
+
+    if config.algorithm in {"v2", "v3"}:
+        payload["ns_alpha_j"] = config.ns_alpha_j
+        payload["ns_alpha_c"] = config.ns_alpha_c
+
+    if config.algorithm == "v3":
+        payload["final_refine"] = config.final_refine
+        payload["final_hmax_factor"] = config.final_hmax_factor
+        payload["final_hmin_ratio"] = config.final_hmin_ratio
+        payload["final_hausd_ratio"] = config.final_hausd_ratio
+        payload["final_rmc"] = config.final_rmc
+        payload["smooth_steps"] = config.smooth_steps
+        payload["smooth_eps_factor"] = config.smooth_eps_factor
+        payload["smooth_iso_shift"] = config.smooth_iso_shift
+
+    if config.algorithm == "v1" and config.penalty is not None:
+        payload["penalty"] = config.penalty
+
+    return payload
 
 
 def parse_series_file(path: Path, default_columns: list[str]) -> dict[str, Any]:
@@ -424,23 +488,19 @@ def parse_series_file(path: Path, default_columns: list[str]) -> dict[str, Any]:
 
 
 def series_layout(config: dict[str, Any], history_name: str) -> list[str]:
-    algorithm = config.get("algorithm")
+    algorithm = ALGORITHM_ALIASES.get(str(config.get("algorithm", "v1")), str(config.get("algorithm", "v1")))
     if history_name == "obj.txt":
-        if algorithm == "ns":
+        if algorithm in {"v2", "v3"}:
             return ["iter", "objective"]
         return ["iter", "objective", "objective_aug"]
+    if history_name == "obj_raw.txt":
+        return ["iter", "objective_raw"]
     if history_name == "vol.txt":
         return ["iter", "volume", "violation"]
     if history_name == "al.txt":
         return ["lambda", "penalty"]
     if history_name == "ns.txt":
         return ["iter", "alpha_j", "alpha_c", "proj_coeff", "range_coeff", "max_xi_j", "max_xi_c"]
-    if history_name == "obj_rv.txt":
-        return ["iter", "objective", "objective_aug"]
-    if history_name == "vol_rv.txt":
-        return ["iter", "volume", "area", "nu"]
-    if history_name == "al_rv.txt":
-        return ["lambda_v", "penalty_v", "lambda_nu", "penalty_nu"]
     return ["c0", "c1"]
 
 
@@ -469,7 +529,7 @@ def extract_runtime_summary(log_text: str, series: dict[str, Any]) -> dict[str, 
         "stage": stage_matches[-1] if stage_matches else None,
         "volume": None,
     }
-    volume_series = series.get("vol.txt") or series.get("vol_rv.txt")
+    volume_series = series.get("vol.txt")
     if volume_series and volume_series["rows"]:
         last_row = volume_series["rows"][-1]
         summary["volume"] = last_row.get("volume") or last_row.get("c1")
@@ -484,12 +544,152 @@ def experiment_artifact_url(experiment_id: str, relative_path: str | None) -> st
     return f"/artifacts/{experiment_id}/{relative_path}{suffix}"
 
 
+OMEGA_ITERATION_RE = re.compile(r"Omega\.(\d+)\.mesh$")
+
+
+def find_final_mesh_path(experiment_dir: Path) -> Path | None:
+    out_dir = experiment_dir / "out"
+    final_path = out_dir / "Omega.final.mesh"
+    if final_path.exists():
+        return final_path
+
+    numbered: list[tuple[int, Path]] = []
+    for path in out_dir.glob("Omega.*.mesh"):
+        match = OMEGA_ITERATION_RE.fullmatch(path.name)
+        if match:
+            numbered.append((int(match.group(1)), path))
+
+    if not numbered:
+        return None
+    numbered.sort(key=lambda item: item[0])
+    return numbered[-1][1]
+
+
+def parse_medit_surface_polydata(mesh_path: Path, preferred_refs: set[int] | None = None) -> dict[str, Any]:
+    preferred = preferred_refs or {13}
+    lines = [
+        line.strip()
+        for line in mesh_path.read_text(errors="replace").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+    vertices: list[tuple[float, float, float]] = []
+    triangles: list[tuple[int, int, int, int]] = []
+    tetrahedra: list[tuple[int, int, int, int, int]] = []
+
+    i = 0
+    while i < len(lines):
+        token = lines[i]
+        if token == "Vertices":
+            count = int(lines[i + 1])
+            for row in lines[i + 2 : i + 2 + count]:
+                parts = row.split()
+                if len(parts) < 3:
+                    raise ValueError(f"Malformed vertex row in {mesh_path.name}: {row}")
+                vertices.append((float(parts[0]), float(parts[1]), float(parts[2])))
+            i += 2 + count
+            continue
+        if token == "Triangles":
+            count = int(lines[i + 1])
+            for row in lines[i + 2 : i + 2 + count]:
+                parts = row.split()
+                if len(parts) < 4:
+                    raise ValueError(f"Malformed triangle row in {mesh_path.name}: {row}")
+                triangles.append((int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3])))
+            i += 2 + count
+            continue
+        if token == "Tetrahedra":
+            count = int(lines[i + 1])
+            for row in lines[i + 2 : i + 2 + count]:
+                parts = row.split()
+                if len(parts) < 5:
+                    raise ValueError(f"Malformed tetrahedra row in {mesh_path.name}: {row}")
+                tetrahedra.append(
+                    (int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4]))
+                )
+            i += 2 + count
+            continue
+        i += 1
+
+    if not vertices:
+        raise ValueError(f"No vertices found in {mesh_path.name}")
+    if not triangles and not tetrahedra:
+        raise ValueError(f"No triangles found in {mesh_path.name}")
+
+    selected_faces: list[tuple[int, int, int]]
+    selection_mode = "triangle-ref"
+
+    # Prefer the true obstacle-fluid interface when tetrahedra are available.
+    if tetrahedra:
+        face_refs: dict[tuple[int, int, int], set[int]] = {}
+        for a, b, c, d, ref in tetrahedra:
+            for face in ((a, b, c), (a, b, d), (a, c, d), (b, c, d)):
+                key = tuple(sorted(face))
+                refs = face_refs.setdefault(key, set())
+                refs.add(ref)
+
+        interface_faces = [
+            face
+            for face, refs in face_refs.items()
+            if PHASE_OBSTACLE in refs and PHASE_FLUID in refs
+        ]
+        if interface_faces:
+            selected_faces = interface_faces
+            selection_mode = "tet-interface"
+        else:
+            selected = [tri for tri in triangles if tri[3] in preferred]
+            if selected:
+                selected_faces = [(a, b, c) for a, b, c, _ref in selected]
+            else:
+                selected_faces = [(a, b, c) for a, b, c, _ref in triangles]
+                selection_mode = "triangle-all"
+    else:
+        selected = [tri for tri in triangles if tri[3] in preferred]
+        if selected:
+            selected_faces = [(a, b, c) for a, b, c, _ref in selected]
+        else:
+            selected_faces = [(a, b, c) for a, b, c, _ref in triangles]
+            selection_mode = "triangle-all"
+
+    index_map: dict[int, int] = {}
+    points: list[float] = []
+    polys: list[int] = []
+
+    for a, b, c in selected_faces:
+        local = []
+        for old_index in (a, b, c):
+            if old_index < 1 or old_index > len(vertices):
+                raise ValueError(f"Triangle index out of range in {mesh_path.name}: {old_index}")
+            if old_index not in index_map:
+                index_map[old_index] = len(index_map)
+                x, y, z = vertices[old_index - 1]
+                points.extend((x, y, z))
+            local.append(index_map[old_index])
+        polys.extend((3, local[0], local[1], local[2]))
+
+    return {
+        "source": mesh_path.name,
+        "triangle_count": len(selected_faces),
+        "point_count": len(index_map),
+        "selection_mode": selection_mode,
+        "used_reference_filter": selection_mode == "triangle-ref",
+        "points": points,
+        "polys": polys,
+    }
+
+
 def list_user_presets() -> list[dict[str, Any]]:
-    return read_json(USER_PRESETS_FILE, [])
+    presets = read_json(USER_PRESETS_FILE, [])
+    normalized: list[dict[str, Any]] = []
+    for item in presets:
+        if isinstance(item, dict) and isinstance(item.get("config"), dict):
+            normalized.append({**item, "config": normalize_config_dict(item["config"])})
+    return normalized
 
 
 def read_experiment(experiment_dir: Path) -> dict[str, Any]:
-    config = read_json(experiment_dir / "config.json", {})
+    raw_config = read_json(experiment_dir / "config.json", {})
+    config = normalize_config_dict(raw_config) if raw_config else {}
     meta = read_json(experiment_dir / "meta.json", {})
     target_info = TARGETS.get((config.get("dimension"), config.get("algorithm")))
     history_names = target_info["history"] if target_info else []
@@ -515,6 +715,7 @@ def read_experiment(experiment_dir: Path) -> dict[str, Any]:
     if not finals and (out_dir / "obstacle.mp4").exists():
         finals["default"] = experiment_artifact_url(experiment_dir.name, "out/obstacle.mp4")
 
+    final_mesh_path = find_final_mesh_path(experiment_dir)
     return {
         "id": experiment_dir.name,
         "config": config,
@@ -526,6 +727,7 @@ def read_experiment(experiment_dir: Path) -> dict[str, Any]:
         "preview_urls": previews,
         "final_urls": finals,
         "xdmf_url": experiment_artifact_url(experiment_dir.name, f"out/{target_info['xdmf']}") if target_info else None,
+        "final_mesh_url": f"/api/experiments/{experiment_dir.name}/final-mesh" if final_mesh_path else None,
     }
 
 
@@ -534,6 +736,8 @@ def experiment_list() -> list[dict[str, Any]]:
     for path in sorted(EXPERIMENTS_DIR.glob("*"), reverse=True):
         if path.is_dir() and (path / "config.json").exists():
             data = read_experiment(path)
+            if data["config"].get("dimension") != "3d":
+                continue
             items.append(
                 {
                     "id": data["id"],
@@ -543,6 +747,7 @@ def experiment_list() -> list[dict[str, Any]]:
                     "diagnostics": data["diagnostics"],
                 }
             )
+    items.sort(key=lambda item: 0 if item["meta"].get("favorite") else 1)
     return items
 
 
@@ -630,9 +835,7 @@ class JobManager:
             experiment_dir.mkdir(parents=True, exist_ok=True)
             (experiment_dir / "out").mkdir(exist_ok=True)
 
-            config_payload = config.model_dump()
-            config_payload["mesh_path"] = shape["mesh"]
-            config_payload["initial_shape_label"] = shape["label"]
+            config_payload = used_config_payload(config, shape["mesh"], shape["label"])
             write_json(experiment_dir / "config.json", config_payload)
             self._write_meta(
                 experiment_dir,
@@ -771,7 +974,7 @@ class JobManager:
         if not experiment_dir.exists():
             raise HTTPException(status_code=404, detail="Experiment not found.")
         data = read_experiment(experiment_dir)
-        target_info = resolve_target(JobConfig(**data["config"]))
+        target_info = resolve_target(JobConfig(**normalize_config_dict(data["config"])))
         self._render_animation(experiment_dir, data["config"], target_info, camera, preview=not final)
         return read_experiment(experiment_dir)
 
@@ -799,7 +1002,6 @@ def api_config() -> dict[str, Any]:
         "objective_senses": ["min", "max"],
         "camera_presets": {
             "3d": ["default", "front", "side", "top", "isometric"],
-            "2d": ["default"],
         },
         "presets": DEFAULT_PRESETS + list_user_presets(),
     }
@@ -810,12 +1012,12 @@ def api_start_job(config: JobConfig) -> dict[str, Any]:
     if not supports_objective_mode(config):
         raise HTTPException(
             status_code=400,
-            detail="当前组合暂不支持该目标模式。现阶段 C 支持 original 和 NS；Q 仅支持 3D original 和 3D NS。",
+            detail="当前组合暂不支持该目标模式。现阶段 C/Q 仅支持 v1、v2、v3。",
         )
     if config.objective_sense == "max" and not supports_objective_sense(config):
         raise HTTPException(
             status_code=400,
-            detail="当前组合暂不支持 max 模式。现阶段 min/max 支持 original 和 NS。",
+            detail="当前组合暂不支持 max 模式。现阶段 min/max 仅支持 v1、v2、v3。",
         )
     return manager.start(config)
 
@@ -850,6 +1052,20 @@ def api_experiment_detail(experiment_id: str) -> dict[str, Any]:
     return read_experiment(path)
 
 
+@app.get("/api/experiments/{experiment_id}/final-mesh")
+def api_experiment_final_mesh(experiment_id: str) -> dict[str, Any]:
+    path = EXPERIMENTS_DIR / experiment_id
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Experiment not found.")
+    mesh_path = find_final_mesh_path(path)
+    if not mesh_path:
+        raise HTTPException(status_code=404, detail="Final mesh not found.")
+    try:
+        return parse_medit_surface_polydata(mesh_path)
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @app.delete("/api/experiments/{experiment_id}")
 def api_delete_experiment(experiment_id: str) -> dict[str, Any]:
     path = EXPERIMENTS_DIR / experiment_id
@@ -859,6 +1075,17 @@ def api_delete_experiment(experiment_id: str) -> dict[str, Any]:
         raise HTTPException(status_code=409, detail="Cannot delete a running experiment.")
     shutil.rmtree(path)
     return {"ok": True}
+
+
+@app.post("/api/experiments/{experiment_id}/favorite")
+def api_experiment_favorite(experiment_id: str, request: FavoriteRequest) -> dict[str, Any]:
+    path = EXPERIMENTS_DIR / experiment_id
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Experiment not found.")
+    meta = read_json(path / "meta.json", {})
+    meta["favorite"] = request.favorite
+    write_json(path / "meta.json", meta)
+    return read_experiment(path)
 
 
 @app.post("/api/experiments/{experiment_id}/render")

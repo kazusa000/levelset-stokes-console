@@ -9,14 +9,15 @@ import {
   XAxis,
   YAxis
 } from "recharts";
-import type { ExperimentDetail, ExperimentSummary, JobConfig } from "./types";
+import FinalMeshViewer from "./FinalMeshViewer";
+import type { ExperimentDetail, ExperimentSummary, FinalMeshData, JobConfig } from "./types";
 
 type Locale = "zh" | "en";
 type ViewMode = "create" | "experiment";
 
 const defaultConfig: JobConfig = {
   dimension: "3d",
-  algorithm: "original",
+  algorithm: "v1",
   initial_shape: "sphere",
   objective_mode: "K",
   objective_sense: "min",
@@ -24,13 +25,22 @@ const defaultConfig: JobConfig = {
   j_axis: 1,
   max_iters: 20,
   step_k: 0.1,
-  hmax: 0.2,
+  hmax: 0.4,
   hmin_ratio: 0.1,
   hausd_ratio: 0.1,
+  convergence_window: 5,
+  convergence_rtol_jraw: 5e-3,
+  ns_alpha_j: 0.5,
+  ns_alpha_c: 0.5,
+  final_refine: true,
+  final_hmax_factor: 1.0,
+  final_hmin_ratio: 0.1,
+  final_hausd_ratio: 3.0,
+  final_rmc: 1e-4,
+  smooth_steps: 1,
+  smooth_eps_factor: 0.05,
+  smooth_iso_shift: 0.0,
   penalty: 100,
-  penalty_v: 5000,
-  penalty_nu: 5000,
-  conservative_preset: true,
   camera_preset: "isometric",
   fps: 5,
   width: 960,
@@ -47,9 +57,14 @@ const ui = {
     solver: "求解设置",
     render: "动画设置",
     advanced: "高级参数",
+    convergence: "收敛判据",
     runningQueue: "运行中任务",
     noRunningJobs: "当前没有运行中的任务。",
     stopJob: "停止该任务",
+    favorite: "收藏",
+    unfavorite: "取消收藏",
+    favorites: "收藏夹",
+    noFavorites: "当前没有收藏的实验。",
     recentExperiments: "最近实验",
     preset: "预设模板",
     choosePreset: "选择预设",
@@ -64,7 +79,19 @@ const ui = {
     axisI: "i 轴",
     axisJ: "j 轴",
     maxIters: "最大迭代",
-    conservative: "保守参数",
+    finalBeautify: "最终美化",
+    finalRefine: "收敛后最终精细化",
+    finalHmaxFactor: "最终 discretize hmax 系数",
+    finalHminRatio: "最终 discretize hmin_ratio",
+    finalHausdRatio: "最终 discretize hausd_ratio",
+    finalRmc: "最终 discretize RMC",
+    smoothSteps: "平滑步数",
+    smoothEpsFactor: "平滑 eps 系数",
+    smoothIsoShift: "平滑等值面偏移",
+    convergenceWindow: "收敛窗口",
+    convergenceRtolJraw: "Jraw 收敛阈值",
+    nsAlphaJ: "NS alphaJ 系数",
+    nsAlphaC: "NS alphaC 系数",
     camera: "相机角度",
     showEdges: "显示边",
     start: "启动任务",
@@ -77,6 +104,13 @@ const ui = {
     previewNote: "可随时切换角度；运行中可刷新当前角度预览，跑完后可为任意角度生成最终动画。",
     refreshPreview: "刷新当前角度预览",
     renderFinal: "生成当前角度最终动画",
+    finalMeshViewer: "最终 3D 形状",
+    finalMeshSource: "来源",
+    finalMeshSelection: "提取方式",
+    experimentConfig: "实验参数",
+    finalMeshVerifiedFinal: "当前显示的是 Omega.final.mesh，也就是算法最终后处理阶段保存的最终网格。",
+    finalMeshFallback: "当前显示的不是 Omega.final.mesh，而是最后一个 Omega.N.mesh 回退结果。",
+    finalMeshPending: "最终形状尚未可用。收敛并完成算法的最终后处理后会显示在这里。",
     noPreview: "还没有可用预览。运行几轮后或手动触发动画生成。",
     objectiveCurve: "Objective 曲线",
     volumeCurve: "Volume 曲线",
@@ -92,6 +126,7 @@ const ui = {
     stopFailed: "停止失败",
     renderFailed: "动画生成失败",
     deleteFailed: "删除实验失败",
+    favoriteFailed: "更新收藏失败",
     presetName: "预设名称",
     savedPreset: (name: string) => `已保存预设：${name}`,
     refreshedPreview: (view: string) => `已刷新 ${view} 角度预览`,
@@ -106,9 +141,14 @@ const ui = {
     solver: "Solver",
     render: "Rendering",
     advanced: "Advanced",
+    convergence: "Convergence",
     runningQueue: "Running jobs",
     noRunningJobs: "No running jobs.",
     stopJob: "Stop job",
+    favorite: "Favorite",
+    unfavorite: "Unfavorite",
+    favorites: "Favorites",
+    noFavorites: "No favorited experiments.",
     recentExperiments: "Recent experiments",
     preset: "Preset",
     choosePreset: "Choose preset",
@@ -123,7 +163,19 @@ const ui = {
     axisI: "i axis",
     axisJ: "j axis",
     maxIters: "Max iterations",
-    conservative: "Conservative preset",
+    finalBeautify: "Final beautify",
+    finalRefine: "Final refine after convergence",
+    finalHmaxFactor: "Final discretize hmax factor",
+    finalHminRatio: "Final discretize hmin ratio",
+    finalHausdRatio: "Final discretize hausd ratio",
+    finalRmc: "Final discretize RMC",
+    smoothSteps: "Smooth steps",
+    smoothEpsFactor: "Smooth eps factor",
+    smoothIsoShift: "Smooth iso shift",
+    convergenceWindow: "Convergence window",
+    convergenceRtolJraw: "Jraw convergence rtol",
+    nsAlphaJ: "NS alphaJ factor",
+    nsAlphaC: "NS alphaC factor",
     camera: "Camera",
     showEdges: "Show edges",
     start: "Start",
@@ -136,6 +188,13 @@ const ui = {
     previewNote: "Switch views at any time. Refresh the current preview while a run is active, or render a final animation for any view afterwards.",
     refreshPreview: "Refresh current preview",
     renderFinal: "Render final animation",
+    finalMeshViewer: "Final 3D mesh",
+    finalMeshSource: "Source",
+    finalMeshSelection: "Selection",
+    experimentConfig: "Experiment Config",
+    finalMeshVerifiedFinal: "This viewer is showing Omega.final.mesh, i.e. the mesh saved by the algorithm's final post-processing stage.",
+    finalMeshFallback: "This viewer is not showing Omega.final.mesh. It is falling back to the last Omega.N.mesh.",
+    finalMeshPending: "The final mesh is not available yet. It will appear here after convergence and the algorithm's final post-processing.",
     noPreview: "No preview available yet. Run a few iterations or trigger rendering manually.",
     objectiveCurve: "Objective curve",
     volumeCurve: "Volume curve",
@@ -151,6 +210,7 @@ const ui = {
     stopFailed: "Failed to stop job",
     renderFailed: "Failed to render animation",
     deleteFailed: "Failed to delete experiment",
+    favoriteFailed: "Failed to update favorite",
     presetName: "Preset name",
     savedPreset: (name: string) => `Saved preset: ${name}`,
     refreshedPreview: (view: string) => `Refreshed ${view} preview`,
@@ -193,9 +253,7 @@ function shapePreviewSvg(dimension: JobConfig["dimension"], shape: string): stri
     double_hole: `<ellipse cx="80" cy="60" rx="36" ry="28" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/><ellipse cx="67" cy="60" rx="11" ry="8" fill="#eef4fb" stroke="#4b6ea9" stroke-width="3"/><ellipse cx="93" cy="60" rx="11" ry="8" fill="#eef4fb" stroke="#4b6ea9" stroke-width="3"/>`
   };
 
-  const fallback = dimension === "2d"
-    ? `<circle cx="80" cy="60" r="28" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`
-    : `<path d="M46,66c0,-22 18,-34 36,-34c14,0 23,5 29,14c5,8 12,9 12,20c0,16 -15,27 -36,27c-26,0 -41,-11 -41,-27z" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`;
+  const fallback = `<path d="M46,66c0,-22 18,-34 36,-34c14,0 23,5 29,14c5,8 12,9 12,20c0,16 -15,27 -36,27c-26,0 -41,-11 -41,-27z" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`;
 
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120">
@@ -249,27 +307,38 @@ function usePolling<T>(url: string, intervalMs: number, enabled = true) {
 }
 
 function patchDefaults(config: JobConfig): JobConfig {
-  if (config.algorithm === "ns") {
+  if (config.algorithm === "v2") {
     return {
       ...config,
-      penalty: undefined,
-      penalty_v: undefined,
-      penalty_nu: undefined
+      convergence_window: config.convergence_window ?? 5,
+      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
+      ns_alpha_j: config.ns_alpha_j ?? 0.5,
+      ns_alpha_c: config.ns_alpha_c ?? 0.5,
+      penalty: undefined
     };
   }
-  if (config.algorithm === "rv") {
+  if (config.algorithm === "v3") {
     return {
       ...config,
-      penalty: undefined,
-      penalty_v: config.penalty_v ?? 5000,
-      penalty_nu: config.penalty_nu ?? 5000
+      step_k: 0.2,
+      convergence_window: 5,
+      convergence_rtol_jraw: 5e-2,
+      ns_alpha_j: 0.5,
+      ns_alpha_c: 0.5,
+      final_refine: true,
+      final_hmax_factor: 0.1,
+      final_hmin_ratio: 0.1,
+      final_hausd_ratio: 3.0,
+      final_rmc: 1e-4,
+      smooth_steps: 1,
+      smooth_eps_factor: 1.0,
+      smooth_iso_shift: 0.0,
+      penalty: undefined
     };
   }
   return {
     ...config,
-    penalty: config.penalty ?? 100,
-    penalty_v: undefined,
-    penalty_nu: undefined
+    penalty: config.penalty ?? 100
   };
 }
 
@@ -290,6 +359,10 @@ function formatTarget(
 ): string {
   const sense = config.objective_sense ?? "min";
   return `${sense} ${config.objective_mode}_${config.i_axis}${config.j_axis}`;
+}
+
+function formatHmax(config: Pick<JobConfig, "hmax">): string {
+  return `hmax=${config.hmax}`;
 }
 
 export default function App() {
@@ -317,10 +390,23 @@ export default function App() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
   const [shapePreviewFailed, setShapePreviewFailed] = useState(false);
+  const [sectionOpen, setSectionOpen] = useState({
+    running: true,
+    favorites: true,
+    recent: true
+  });
   const t = ui[locale];
 
   const runningExperiments = jobsData?.running ?? [];
   const runningIds = useMemo(() => new Set(runningExperiments.map((job) => job.id)), [runningExperiments]);
+  const favoriteExperiments = useMemo(
+    () => (experimentsData ?? []).filter((experiment) => Boolean(experiment.meta?.favorite)),
+    [experimentsData]
+  );
+  const recentExperiments = useMemo(
+    () => (experimentsData ?? []).filter((experiment) => !experiment.meta?.favorite),
+    [experimentsData]
+  );
   const activeRunning = useMemo(
     () => runningExperiments.find((job) => job.id === selectedExperimentId) ?? null,
     [runningExperiments, selectedExperimentId]
@@ -334,16 +420,25 @@ export default function App() {
   const shapes = useMemo(() => configData?.shapes?.[form.dimension] ?? [], [configData, form.dimension]);
   const presets = configData?.presets ?? [];
   const cameraOptions = configData?.camera_presets?.[form.dimension] ?? ["default"];
-  const axisOptions = form.dimension === "2d" ? [0, 1] : [0, 1, 2];
+  const axisOptions = [0, 1, 2];
   const objectiveModes = configData?.objective_modes ?? [
     { key: "K", enabled: true },
     { key: "C", enabled: true },
     { key: "Q", enabled: true }
   ];
   const objectiveSenses = configData?.objective_senses ?? ["min", "max"];
-  const supportsC = form.algorithm === "original" || form.algorithm === "ns";
-  const supportsQ = form.dimension === "3d" && (form.algorithm === "original" || form.algorithm === "ns");
-  const supportsObjectiveSense = form.algorithm === "original" || form.algorithm === "ns";
+  const supportsC =
+    form.algorithm === "v1" ||
+    form.algorithm === "v2" ||
+    form.algorithm === "v3";
+  const supportsQ =
+    form.algorithm === "v1" ||
+    form.algorithm === "v2" ||
+    form.algorithm === "v3";
+  const supportsObjectiveSense =
+    form.algorithm === "v1" ||
+    form.algorithm === "v2" ||
+    form.algorithm === "v3";
   const selectedShape = shapes.find((shape: any) => shape.key === form.initial_shape) ?? null;
   const shapePreviewSvgUrl = useMemo(
     () => `data:image/svg+xml;utf8,${encodeURIComponent(shapePreviewSvg(form.dimension, form.initial_shape))}`,
@@ -371,12 +466,6 @@ export default function App() {
       setForm((prev) => ({ ...prev, initial_shape: shapes[0].key }));
     }
   }, [shapes, form.initial_shape]);
-
-  useEffect(() => {
-    if (form.dimension === "2d" && form.camera_preset !== "default") {
-      setForm((prev) => ({ ...prev, camera_preset: "default" }));
-    }
-  }, [form.dimension, form.camera_preset]);
 
   useEffect(() => {
     if (form.objective_mode === "C" && !supportsC) {
@@ -425,10 +514,23 @@ export default function App() {
   }, [selectedExperimentId, runningExperiments, runningIds, experimentsData, viewMode]);
 
   const activeDetail = activeRunning ?? detailData ?? null;
-  const objectiveSeries = activeDetail?.series?.["obj.txt"] ?? activeDetail?.series?.["obj_rv.txt"];
-  const volumeSeries = activeDetail?.series?.["vol.txt"] ?? activeDetail?.series?.["vol_rv.txt"];
+  const objectiveSeries = activeDetail?.series?.["obj.txt"];
+  const volumeSeries = activeDetail?.series?.["vol.txt"];
   const activeCameraUrl =
     activeDetail?.preview_urls?.[form.camera_preset] ?? activeDetail?.final_urls?.[form.camera_preset] ?? null;
+  const finalMeshUrl =
+    activeDetail?.config.dimension === "3d" &&
+    (
+      activeDetail?.config.algorithm === "v2" ||
+      activeDetail?.config.algorithm === "v3"
+    )
+      ? activeDetail.final_mesh_url ?? null
+      : null;
+  const { data: finalMeshData, error: finalMeshError } = usePolling<FinalMeshData>(
+    finalMeshUrl ?? "",
+    5000,
+    Boolean(finalMeshUrl)
+  );
 
   const handleStart = async () => {
     try {
@@ -526,6 +628,33 @@ export default function App() {
     }
   };
 
+  const handleFavoriteExperiment = async (id: string, favorite: boolean) => {
+    try {
+      setBusy(true);
+      const updated = await postJson<ExperimentDetail>(`/api/experiments/${id}/favorite`, { favorite });
+      setExperimentsData((prev) => {
+        const next = (prev ?? []).map((experiment) => (experiment.id === id ? updated : experiment));
+        next.sort((a, b) => {
+          const af = a.meta?.favorite ? 1 : 0;
+          const bf = b.meta?.favorite ? 1 : 0;
+          return bf - af;
+        });
+        return next;
+      });
+      if (selectedExperimentId === id && !runningIds.has(id)) {
+        setDetailData(updated);
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : t.favoriteFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleSection = (key: "running" | "favorites" | "recent") => {
+    setSectionOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const handlePresetLoad = (name: string) => {
     const preset = presets.find((item: any) => item.name === name);
     if (!preset) {
@@ -568,8 +697,11 @@ export default function App() {
         </button>
 
         <div className="nav-section">
-          <h3>{t.runningQueue}</h3>
-          {runningExperiments.length ? (
+          <button className="nav-section-toggle" onClick={() => toggleSection("running")}>
+            <h3>{t.runningQueue}</h3>
+            <span>{sectionOpen.running ? "▾" : "▸"}</span>
+          </button>
+          {sectionOpen.running ? (runningExperiments.length ? (
             <div className="running-list nav-list">
               {runningExperiments.map((job) => (
                 <div
@@ -590,7 +722,7 @@ export default function App() {
                     <span>
                       {formatTarget(job.config)} · it={job.summary.iteration ?? "-"}
                     </span>
-                    <span>{job.summary.stage ?? String(job.meta.status ?? "running")}</span>
+                    <span>{formatHmax(job.config)} · {job.summary.stage ?? String(job.meta.status ?? "running")}</span>
                   </button>
                   <button
                     className="history-delete danger"
@@ -604,13 +736,17 @@ export default function App() {
             </div>
           ) : (
             <div className="placeholder">{t.noRunningJobs}</div>
-          )}
+          )) : null}
         </div>
 
         <div className="nav-section">
-          <h3>{t.recentExperiments}</h3>
+          <button className="nav-section-toggle" onClick={() => toggleSection("favorites")}>
+            <h3>{t.favorites}</h3>
+            <span>{sectionOpen.favorites ? "▾" : "▸"}</span>
+          </button>
+          {sectionOpen.favorites ? (favoriteExperiments.length ? (
           <div className="history-list nav-list">
-            {experimentsData?.map((experiment) => (
+            {favoriteExperiments.map((experiment) => (
               <div
                 key={experiment.id}
                 className={`history-item ${selectedExperimentId === experiment.id ? "active" : ""}`}
@@ -626,7 +762,15 @@ export default function App() {
                   <strong>
                     {experiment.config.dimension.toUpperCase()} / {experiment.config.algorithm} / {experiment.config.initial_shape}
                   </strong>
-                  <span>{formatTarget(experiment.config)}</span>
+                  <span>{formatTarget(experiment.config)} · {formatHmax(experiment.config)}</span>
+                </button>
+                <button
+                  className={`history-favorite ${experiment.meta?.favorite ? "active" : ""}`}
+                  disabled={busy}
+                  title={experiment.meta?.favorite ? t.unfavorite : t.favorite}
+                  onClick={() => void handleFavoriteExperiment(experiment.id, !Boolean(experiment.meta?.favorite))}
+                >
+                  {experiment.meta?.favorite ? "★" : "☆"}
                 </button>
                 <button
                   className="history-delete danger"
@@ -638,6 +782,55 @@ export default function App() {
               </div>
             ))}
           </div>
+          ) : (
+            <div className="placeholder">{t.noFavorites}</div>
+          )) : null}
+        </div>
+
+        <div className="nav-section">
+          <button className="nav-section-toggle" onClick={() => toggleSection("recent")}>
+            <h3>{t.recentExperiments}</h3>
+            <span>{sectionOpen.recent ? "▾" : "▸"}</span>
+          </button>
+          {sectionOpen.recent ? (
+          <div className="history-list nav-list">
+            {recentExperiments.map((experiment) => (
+              <div
+                key={experiment.id}
+                className={`history-item ${selectedExperimentId === experiment.id ? "active" : ""}`}
+              >
+                <button
+                  className="history-main"
+                  onClick={() => {
+                    setPendingDeleteId(null);
+                    setViewMode("experiment");
+                    setSelectedExperimentId(experiment.id);
+                  }}
+                >
+                  <strong>
+                    {experiment.config.dimension.toUpperCase()} / {experiment.config.algorithm} / {experiment.config.initial_shape}
+                  </strong>
+                  <span>{formatTarget(experiment.config)} · {formatHmax(experiment.config)}</span>
+                </button>
+                <button
+                  className={`history-favorite ${experiment.meta?.favorite ? "active" : ""}`}
+                  disabled={busy}
+                  title={experiment.meta?.favorite ? t.unfavorite : t.favorite}
+                  onClick={() => void handleFavoriteExperiment(experiment.id, !Boolean(experiment.meta?.favorite))}
+                >
+                  {experiment.meta?.favorite ? "★" : "☆"}
+                </button>
+                <button
+                  className="history-delete danger"
+                  disabled={busy || runningIds.has(experiment.id)}
+                  onClick={() => void handleDeleteExperiment(experiment.id)}
+                >
+                  {pendingDeleteId === experiment.id ? t.confirmDelete : t.delete}
+                </button>
+              </div>
+            ))}
+          </div>
+          ) : null}
         </div>
       </aside>
 
@@ -665,19 +858,8 @@ export default function App() {
 
                 <label>
                   {t.dimension}
-                  <select
-                    disabled={busy}
-                    value={form.dimension}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        dimension: e.target.value as JobConfig["dimension"],
-                        initial_shape: e.target.value === "2d" ? "circle" : "sphere"
-                      }))
-                    }
-                  >
+                  <select disabled={true} value={form.dimension}>
                     <option value="3d">3D</option>
-                    <option value="2d">2D</option>
                   </select>
                 </label>
 
@@ -690,9 +872,9 @@ export default function App() {
                       setForm((prev) => patchDefaults({ ...prev, algorithm: e.target.value as JobConfig["algorithm"] }))
                     }
                   >
-                    <option value="original">original</option>
-                    <option value="ns">NS</option>
-                    <option value="rv">RV</option>
+                    <option value="v1">3Dv1</option>
+                    <option value="v2">3Dv2</option>
+                    <option value="v3">3Dv3</option>
                   </select>
                 </label>
 
@@ -797,30 +979,157 @@ export default function App() {
                   <input disabled={busy} type="number" value={form.max_iters} onChange={(e) => setForm((prev) => ({ ...prev, max_iters: Number(e.target.value) }))} />
                 </label>
 
-                {form.algorithm === "original" && (
+                {(form.algorithm === "v2" || form.algorithm === "v3") && (
+                  <>
+                    <label>
+                      {t.convergenceWindow}
+                      <input
+                        disabled={busy}
+                        type="number"
+                        min={2}
+                        step="1"
+                        value={form.convergence_window}
+                        onChange={(e) => setForm((prev) => ({ ...prev, convergence_window: Number(e.target.value) }))}
+                      />
+                    </label>
+
+                    <label>
+                      {t.convergenceRtolJraw}
+                      <input
+                        disabled={busy}
+                        type="number"
+                        step="0.001"
+                        value={form.convergence_rtol_jraw}
+                        onChange={(e) => setForm((prev) => ({ ...prev, convergence_rtol_jraw: Number(e.target.value) }))}
+                      />
+                    </label>
+
+                    {(form.algorithm === "v2" || form.algorithm === "v3") && (
+                      <>
+                        <label>
+                          {t.nsAlphaJ}
+                          <input
+                            disabled={busy}
+                            type="number"
+                            step="0.05"
+                            value={form.ns_alpha_j}
+                            onChange={(e) => setForm((prev) => ({ ...prev, ns_alpha_j: Number(e.target.value) }))}
+                          />
+                        </label>
+
+                        <label>
+                          {t.nsAlphaC}
+                          <input
+                            disabled={busy}
+                            type="number"
+                            step="0.05"
+                            value={form.ns_alpha_c}
+                            onChange={(e) => setForm((prev) => ({ ...prev, ns_alpha_c: Number(e.target.value) }))}
+                          />
+                        </label>
+                      </>
+                    )}
+
+                    {form.algorithm === "v3" && (
+                      <>
+                        <label className="inline-checkbox">
+                          <input
+                            disabled={busy}
+                            type="checkbox"
+                            checked={form.final_refine}
+                            onChange={(e) => setForm((prev) => ({ ...prev, final_refine: e.target.checked }))}
+                          />
+                          {t.finalRefine}
+                        </label>
+
+                        <label>
+                          {t.finalHmaxFactor}
+                          <input
+                            disabled={busy || !form.final_refine}
+                            type="number"
+                            step="0.05"
+                            value={form.final_hmax_factor}
+                            onChange={(e) => setForm((prev) => ({ ...prev, final_hmax_factor: Number(e.target.value) }))}
+                          />
+                        </label>
+
+                        <label>
+                          {t.finalHminRatio}
+                          <input
+                            disabled={busy || !form.final_refine}
+                            type="number"
+                            step="0.01"
+                            value={form.final_hmin_ratio}
+                            onChange={(e) => setForm((prev) => ({ ...prev, final_hmin_ratio: Number(e.target.value) }))}
+                          />
+                        </label>
+
+                        <label>
+                          {t.finalHausdRatio}
+                          <input
+                            disabled={busy || !form.final_refine}
+                            type="number"
+                            step="0.1"
+                            value={form.final_hausd_ratio}
+                            onChange={(e) => setForm((prev) => ({ ...prev, final_hausd_ratio: Number(e.target.value) }))}
+                          />
+                        </label>
+
+                        <label>
+                          {t.finalRmc}
+                          <input
+                            disabled={busy || !form.final_refine}
+                            type="number"
+                            step="0.0001"
+                            value={form.final_rmc}
+                            onChange={(e) => setForm((prev) => ({ ...prev, final_rmc: Number(e.target.value) }))}
+                          />
+                        </label>
+
+                        <label>
+                          {t.smoothSteps}
+                          <input
+                            disabled={busy || !form.final_refine}
+                            type="number"
+                            min={1}
+                            step="1"
+                            value={form.smooth_steps}
+                            onChange={(e) => setForm((prev) => ({ ...prev, smooth_steps: Number(e.target.value) }))}
+                          />
+                        </label>
+
+                        <label>
+                          {t.smoothEpsFactor}
+                          <input
+                            disabled={busy || !form.final_refine}
+                            type="number"
+                            step="0.05"
+                            value={form.smooth_eps_factor}
+                            onChange={(e) => setForm((prev) => ({ ...prev, smooth_eps_factor: Number(e.target.value) }))}
+                          />
+                        </label>
+
+                        <label>
+                          {t.smoothIsoShift}
+                          <input
+                            disabled={busy || !form.final_refine}
+                            type="number"
+                            step="0.01"
+                            value={form.smooth_iso_shift}
+                            onChange={(e) => setForm((prev) => ({ ...prev, smooth_iso_shift: Number(e.target.value) }))}
+                          />
+                        </label>
+                      </>
+                    )}
+                  </>
+                )}
+
+                {form.algorithm === "v1" && (
                   <label>
                     AL penalty
                     <input disabled={busy} type="number" value={form.penalty ?? 100} onChange={(e) => setForm((prev) => ({ ...prev, penalty: Number(e.target.value) }))} />
                   </label>
                 )}
-
-                {form.algorithm === "rv" && (
-                  <>
-                    <label>
-                      penalty V
-                      <input disabled={busy} type="number" value={form.penalty_v ?? 5000} onChange={(e) => setForm((prev) => ({ ...prev, penalty_v: Number(e.target.value) }))} />
-                    </label>
-                    <label>
-                      penalty Nu
-                      <input disabled={busy} type="number" value={form.penalty_nu ?? 5000} onChange={(e) => setForm((prev) => ({ ...prev, penalty_nu: Number(e.target.value) }))} />
-                    </label>
-                  </>
-                )}
-
-                <label className="inline-checkbox">
-                  <input type="checkbox" checked={form.conservative_preset} onChange={(e) => setForm((prev) => ({ ...prev, conservative_preset: e.target.checked }))} />
-                  {t.conservative}
-                </label>
               </div>
             </div>
 
@@ -853,7 +1162,15 @@ export default function App() {
 
                 <label className="field-span-2">
                   Color
-                  <input value={form.color_by} onChange={(e) => setForm((prev) => ({ ...prev, color_by: e.target.value }))} />
+                  <input list="color-by-options" value={form.color_by} onChange={(e) => setForm((prev) => ({ ...prev, color_by: e.target.value }))} />
+                  <datalist id="color-by-options">
+                    <option value="solid" />
+                    <option value="Region" />
+                    <option value="adjacent_displacement" />
+                    <option value="theta" />
+                    <option value="dist" />
+                    <option value="advect" />
+                  </datalist>
                 </label>
 
                 <label className="inline-checkbox">
@@ -868,17 +1185,35 @@ export default function App() {
               <div className="param-grid">
                 <label>
                   hmax
-                  <input disabled={busy} type="number" step="0.01" value={form.hmax} onChange={(e) => setForm((prev) => ({ ...prev, hmax: Number(e.target.value) }))} />
+                  <input
+                    disabled={busy}
+                    type="number"
+                    step="0.01"
+                    value={form.hmax}
+                    onChange={(e) => setForm((prev) => ({ ...prev, hmax: Number(e.target.value) }))}
+                  />
                 </label>
 
                 <label>
                   hmin_ratio
-                  <input disabled={busy} type="number" step="0.01" value={form.hmin_ratio} onChange={(e) => setForm((prev) => ({ ...prev, hmin_ratio: Number(e.target.value) }))} />
+                  <input
+                    disabled={busy}
+                    type="number"
+                    step="0.01"
+                    value={form.hmin_ratio}
+                    onChange={(e) => setForm((prev) => ({ ...prev, hmin_ratio: Number(e.target.value) }))}
+                  />
                 </label>
 
                 <label>
                   hausd_ratio
-                  <input disabled={busy} type="number" step="0.01" value={form.hausd_ratio} onChange={(e) => setForm((prev) => ({ ...prev, hausd_ratio: Number(e.target.value) }))} />
+                  <input
+                    disabled={busy}
+                    type="number"
+                    step="0.01"
+                    value={form.hausd_ratio}
+                    onChange={(e) => setForm((prev) => ({ ...prev, hausd_ratio: Number(e.target.value) }))}
+                  />
                 </label>
               </div>
             </div>
@@ -961,6 +1296,39 @@ export default function App() {
             )}
           </div>
 
+          {activeDetail?.config.dimension === "3d" &&
+            (activeDetail?.config.algorithm === "v2" ||
+              activeDetail?.config.algorithm === "v3") && (
+            <div className="mesh-viewer-card">
+              <div className="video-toolbar">
+                <div>
+                  <h3>{t.finalMeshViewer}</h3>
+                  <p className="toolbar-subtitle">
+                    {finalMeshData
+                      ? `${finalMeshData.point_count} pts · ${finalMeshData.triangle_count} tris`
+                      : t.finalMeshPending}
+                  </p>
+                  {finalMeshData ? (
+                    <>
+                      <p className="toolbar-subtitle">
+                        {t.finalMeshSource}: {finalMeshData.source} · {t.finalMeshSelection}: {finalMeshData.selection_mode ?? "unknown"}
+                      </p>
+                      <p className="toolbar-subtitle">
+                        {finalMeshData.source === "Omega.final.mesh" ? t.finalMeshVerifiedFinal : t.finalMeshFallback}
+                      </p>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+
+              {finalMeshData ? (
+                <FinalMeshViewer mesh={finalMeshData} />
+              ) : (
+                <div className="placeholder">{finalMeshError || t.finalMeshPending}</div>
+              )}
+            </div>
+          )}
+
           <div className="chart-grid">
             <div className="chart-card">
               <h3>{t.objectiveCurve}</h3>
@@ -997,6 +1365,11 @@ export default function App() {
                 <div className="placeholder">{t.noVolume}</div>
               )}
             </div>
+          </div>
+
+          <div className="log-box">
+            <h3>{t.experimentConfig}</h3>
+            <pre>{activeDetail ? JSON.stringify(activeDetail.config, null, 2) : t.noLog}</pre>
           </div>
 
           <div className="log-box">

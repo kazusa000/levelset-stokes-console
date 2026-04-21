@@ -1,5 +1,5 @@
-export type Dimension = "2d" | "3d";
-export type Algorithm = "original" | "ns" | "rv";
+export type Dimension = "3d";
+export type Algorithm = "v1" | "v2" | "v3";
 export type ObjectiveMode = "K" | "C" | "Q";
 export type ObjectiveSense = "min" | "max";
 
@@ -17,10 +17,19 @@ export type JobConfig = {
   hmax: number;
   hmin_ratio: number;
   hausd_ratio: number;
+  convergence_window: number;
+  convergence_rtol_jraw: number;
+  ns_alpha_j: number;
+  ns_alpha_c: number;
+  final_refine: boolean;
+  final_hmax_factor: number;
+  final_hmin_ratio: number;
+  final_hausd_ratio: number;
+  final_rmc: number;
+  smooth_steps: number;
+  smooth_eps_factor: number;
+  smooth_iso_shift: number;
   penalty?: number | null;
-  penalty_v?: number | null;
-  penalty_nu?: number | null;
-  conservative_preset: boolean;
   camera_preset: "default" | "front" | "side" | "top" | "isometric";
   fps: number;
   width: number;
@@ -53,4 +62,15 @@ export type ExperimentDetail = ExperimentSummary & {
   preview_urls: Record<string, string>;
   final_urls: Record<string, string>;
   xdmf_url?: string | null;
+  final_mesh_url?: string | null;
+};
+
+export type FinalMeshData = {
+  source: string;
+  triangle_count: number;
+  point_count: number;
+  selection_mode?: string;
+  used_reference_filter: boolean;
+  points: number[];
+  polys: number[];
 };
