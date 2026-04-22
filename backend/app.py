@@ -53,6 +53,7 @@ ALGORITHM_ALIASES: dict[str, str] = {
     "v1": "v1",
     "v2": "v2",
     "v3": "v3",
+    "v4_test": "v4_test",
     "original": "v1",
     "ns": "v2",
     "test_3DNS_phi_smooth1": "v3",
@@ -72,6 +73,11 @@ TARGETS: dict[tuple[str, str], dict[str, Any]] = {
     ("3d", "v3"): {
         "target": "PETSc_3Dv3",
         "xdmf": "3Dv3.xdmf",
+        "history": ["obj.txt", "vol.txt", "ns.txt"],
+    },
+    ("3d", "v4_test"): {
+        "target": "PETSc_3Dv4_test",
+        "xdmf": "3Dv4_test.xdmf",
         "history": ["obj.txt", "vol.txt", "ns.txt"],
     },
 }
@@ -239,6 +245,34 @@ DEFAULT_PRESETS = [
             "show_edges": False,
         },
     },
+    {
+        "name": "3D-3Dv4_test-sphere",
+        "config": {
+            "dimension": "3d",
+            "algorithm": "v4_test",
+            "initial_shape": "sphere",
+            "objective_mode": "K",
+            "objective_sense": "min",
+            "i_axis": 1,
+            "j_axis": 1,
+            "max_iters": 20,
+            "step_k": 0.1,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
+            "convergence_window": 5,
+            "convergence_rtol_jraw": 5e-3,
+            "ns_alpha_j": 0.5,
+            "ns_alpha_c": 0.5,
+            "surface_area_factor": 1.05,
+            "camera_preset": "isometric",
+            "fps": 5,
+            "width": 960,
+            "height": 540,
+            "color_by": "solid",
+            "show_edges": False,
+        },
+    },
 ]
 
 DIAGNOSTICS = [
@@ -272,7 +306,7 @@ DIAGNOSTICS = [
 
 class JobConfig(BaseModel):
     dimension: Literal["3d"]
-    algorithm: Literal["v1", "v2", "v3"]
+    algorithm: Literal["v1", "v2", "v3", "v4_test"]
     initial_shape: str
     objective_mode: Literal["K", "C", "Q"] = "K"
     objective_sense: Literal["min", "max"] = "min"
@@ -288,6 +322,7 @@ class JobConfig(BaseModel):
     convergence_rtol_jraw: float = Field(default=5e-3, gt=0)
     ns_alpha_j: float = Field(default=0.5, gt=0)
     ns_alpha_c: float = Field(default=0.5, gt=0)
+    surface_area_factor: float = Field(default=1.05, gt=0)
     final_refine: bool = True
     final_hmax_factor: float = Field(default=1.0, gt=0)
     final_hmin_ratio: float = Field(default=0.1, gt=0)
@@ -376,14 +411,14 @@ def supports_objective_mode(config: JobConfig) -> bool:
     if config.objective_mode == "K":
         return True
     if config.objective_mode == "C":
-        return config.algorithm in {"v1", "v2", "v3"}
+        return config.algorithm in {"v1", "v2", "v3", "v4_test"}
     if config.objective_mode == "Q":
-        return config.algorithm in {"v1", "v2", "v3"}
+        return config.algorithm in {"v1", "v2", "v3", "v4_test"}
     return False
 
 
 def supports_objective_sense(config: JobConfig) -> bool:
-    return config.algorithm in {"v1", "v2", "v3"}
+    return config.algorithm in {"v1", "v2", "v3", "v4_test"}
 
 
 def build_env(config: JobConfig, mesh_path: str) -> dict[str, str]:
@@ -398,12 +433,14 @@ def build_env(config: JobConfig, mesh_path: str) -> dict[str, str]:
     env["HMAX"] = str(config.hmax)
     env["HMIN_RATIO"] = str(config.hmin_ratio)
     env["HAUSD_RATIO"] = str(config.hausd_ratio)
-    if config.algorithm in {"v2", "v3"}:
+    if config.algorithm in {"v2", "v3", "v4_test"}:
         env["CONVERGENCE_WINDOW"] = str(config.convergence_window)
         env["CONVERGENCE_RTOL_JRAW"] = str(config.convergence_rtol_jraw)
-    if config.algorithm in {"v2", "v3"}:
+    if config.algorithm in {"v2", "v3", "v4_test"}:
         env["NS_ALPHA_J"] = str(config.ns_alpha_j)
         env["NS_ALPHA_C"] = str(config.ns_alpha_c)
+    if config.algorithm == "v4_test":
+        env["SURFACE_AREA_FACTOR"] = str(config.surface_area_factor)
     if config.algorithm == "v3":
         env["FINAL_REFINE"] = "1" if config.final_refine else "0"
         env["FINAL_HMAX_FACTOR"] = str(config.final_hmax_factor)
@@ -442,13 +479,16 @@ def used_config_payload(config: JobConfig, resolved_mesh_path: str, initial_shap
         "show_edges": config.show_edges,
     }
 
-    if config.algorithm in {"v2", "v3"}:
+    if config.algorithm in {"v2", "v3", "v4_test"}:
         payload["convergence_window"] = config.convergence_window
         payload["convergence_rtol_jraw"] = config.convergence_rtol_jraw
 
-    if config.algorithm in {"v2", "v3"}:
+    if config.algorithm in {"v2", "v3", "v4_test"}:
         payload["ns_alpha_j"] = config.ns_alpha_j
         payload["ns_alpha_c"] = config.ns_alpha_c
+
+    if config.algorithm == "v4_test":
+        payload["surface_area_factor"] = config.surface_area_factor
 
     if config.algorithm == "v3":
         payload["final_refine"] = config.final_refine
@@ -490,16 +530,20 @@ def parse_series_file(path: Path, default_columns: list[str]) -> dict[str, Any]:
 def series_layout(config: dict[str, Any], history_name: str) -> list[str]:
     algorithm = ALGORITHM_ALIASES.get(str(config.get("algorithm", "v1")), str(config.get("algorithm", "v1")))
     if history_name == "obj.txt":
-        if algorithm in {"v2", "v3"}:
+        if algorithm in {"v2", "v3", "v4_test"}:
             return ["iter", "objective"]
         return ["iter", "objective", "objective_aug"]
     if history_name == "obj_raw.txt":
         return ["iter", "objective_raw"]
     if history_name == "vol.txt":
+        if algorithm == "v4_test":
+            return ["iter", "volume", "violation", "area", "area_violation", "area_active"]
         return ["iter", "volume", "violation"]
     if history_name == "al.txt":
         return ["lambda", "penalty"]
     if history_name == "ns.txt":
+        if algorithm == "v4_test":
+            return ["iter", "alpha_j", "alpha_c", "area_active", "proj_v", "proj_a", "range_v", "range_a", "max_xi_j", "max_xi_c"]
         return ["iter", "alpha_j", "alpha_c", "proj_coeff", "range_coeff", "max_xi_j", "max_xi_c"]
     return ["c0", "c1"]
 
@@ -1012,12 +1056,12 @@ def api_start_job(config: JobConfig) -> dict[str, Any]:
     if not supports_objective_mode(config):
         raise HTTPException(
             status_code=400,
-            detail="当前组合暂不支持该目标模式。现阶段 C/Q 仅支持 v1、v2、v3。",
+            detail="当前组合暂不支持该目标模式。现阶段 C/Q 仅支持 v1、v2、v3、v4_test。",
         )
     if config.objective_sense == "max" and not supports_objective_sense(config):
         raise HTTPException(
             status_code=400,
-            detail="当前组合暂不支持 max 模式。现阶段 min/max 仅支持 v1、v2、v3。",
+            detail="当前组合暂不支持 max 模式。现阶段 min/max 仅支持 v1、v2、v3、v4_test。",
         )
     return manager.start(config)
 

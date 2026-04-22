@@ -32,6 +32,7 @@ const defaultConfig: JobConfig = {
   convergence_rtol_jraw: 5e-3,
   ns_alpha_j: 0.5,
   ns_alpha_c: 0.5,
+  surface_area_factor: 1.05,
   final_refine: true,
   final_hmax_factor: 1.0,
   final_hmin_ratio: 0.1,
@@ -92,6 +93,7 @@ const ui = {
     convergenceRtolJraw: "Jraw 收敛阈值",
     nsAlphaJ: "NS alphaJ 系数",
     nsAlphaC: "NS alphaC 系数",
+    surfaceAreaFactor: "面积上界倍率",
     camera: "相机角度",
     showEdges: "显示边",
     start: "启动任务",
@@ -176,6 +178,7 @@ const ui = {
     convergenceRtolJraw: "Jraw convergence rtol",
     nsAlphaJ: "NS alphaJ factor",
     nsAlphaC: "NS alphaC factor",
+    surfaceAreaFactor: "Surface area factor",
     camera: "Camera",
     showEdges: "Show edges",
     start: "Start",
@@ -317,22 +320,34 @@ function patchDefaults(config: JobConfig): JobConfig {
       penalty: undefined
     };
   }
+  if (config.algorithm === "v4_test") {
+    return {
+      ...config,
+      step_k: config.step_k ?? 0.1,
+      convergence_window: config.convergence_window ?? 5,
+      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
+      ns_alpha_j: config.ns_alpha_j ?? 0.5,
+      ns_alpha_c: config.ns_alpha_c ?? 0.5,
+      surface_area_factor: config.surface_area_factor ?? 1.05,
+      penalty: undefined
+    };
+  }
   if (config.algorithm === "v3") {
     return {
       ...config,
-      step_k: 0.2,
-      convergence_window: 5,
-      convergence_rtol_jraw: 5e-2,
-      ns_alpha_j: 0.5,
-      ns_alpha_c: 0.5,
-      final_refine: true,
-      final_hmax_factor: 0.1,
-      final_hmin_ratio: 0.1,
-      final_hausd_ratio: 3.0,
-      final_rmc: 1e-4,
-      smooth_steps: 1,
-      smooth_eps_factor: 1.0,
-      smooth_iso_shift: 0.0,
+      step_k: config.step_k ?? 0.2,
+      convergence_window: config.convergence_window ?? 5,
+      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-2,
+      ns_alpha_j: config.ns_alpha_j ?? 0.5,
+      ns_alpha_c: config.ns_alpha_c ?? 0.5,
+      final_refine: config.final_refine ?? true,
+      final_hmax_factor: config.final_hmax_factor ?? 0.1,
+      final_hmin_ratio: config.final_hmin_ratio ?? 0.1,
+      final_hausd_ratio: config.final_hausd_ratio ?? 3.0,
+      final_rmc: config.final_rmc ?? 1e-4,
+      smooth_steps: config.smooth_steps ?? 1,
+      smooth_eps_factor: config.smooth_eps_factor ?? 1.0,
+      smooth_iso_shift: config.smooth_iso_shift ?? 0.0,
       penalty: undefined
     };
   }
@@ -430,15 +445,18 @@ export default function App() {
   const supportsC =
     form.algorithm === "v1" ||
     form.algorithm === "v2" ||
-    form.algorithm === "v3";
+    form.algorithm === "v3" ||
+    form.algorithm === "v4_test";
   const supportsQ =
     form.algorithm === "v1" ||
     form.algorithm === "v2" ||
-    form.algorithm === "v3";
+    form.algorithm === "v3" ||
+    form.algorithm === "v4_test";
   const supportsObjectiveSense =
     form.algorithm === "v1" ||
     form.algorithm === "v2" ||
-    form.algorithm === "v3";
+    form.algorithm === "v3" ||
+    form.algorithm === "v4_test";
   const selectedShape = shapes.find((shape: any) => shape.key === form.initial_shape) ?? null;
   const shapePreviewSvgUrl = useMemo(
     () => `data:image/svg+xml;utf8,${encodeURIComponent(shapePreviewSvg(form.dimension, form.initial_shape))}`,
@@ -522,7 +540,8 @@ export default function App() {
     activeDetail?.config.dimension === "3d" &&
     (
       activeDetail?.config.algorithm === "v2" ||
-      activeDetail?.config.algorithm === "v3"
+      activeDetail?.config.algorithm === "v3" ||
+      activeDetail?.config.algorithm === "v4_test"
     )
       ? activeDetail.final_mesh_url ?? null
       : null;
@@ -875,6 +894,7 @@ export default function App() {
                     <option value="v1">3Dv1</option>
                     <option value="v2">3Dv2</option>
                     <option value="v3">3Dv3</option>
+                    <option value="v4_test">3Dv4_test</option>
                   </select>
                 </label>
 
@@ -979,7 +999,7 @@ export default function App() {
                   <input disabled={busy} type="number" value={form.max_iters} onChange={(e) => setForm((prev) => ({ ...prev, max_iters: Number(e.target.value) }))} />
                 </label>
 
-                {(form.algorithm === "v2" || form.algorithm === "v3") && (
+                {(form.algorithm === "v2" || form.algorithm === "v3" || form.algorithm === "v4_test") && (
                   <>
                     <label>
                       {t.convergenceWindow}
@@ -1004,7 +1024,7 @@ export default function App() {
                       />
                     </label>
 
-                    {(form.algorithm === "v2" || form.algorithm === "v3") && (
+                    {(form.algorithm === "v2" || form.algorithm === "v3" || form.algorithm === "v4_test") && (
                       <>
                         <label>
                           {t.nsAlphaJ}
@@ -1028,6 +1048,19 @@ export default function App() {
                           />
                         </label>
                       </>
+                    )}
+
+                    {form.algorithm === "v4_test" && (
+                      <label>
+                        {t.surfaceAreaFactor}
+                        <input
+                          disabled={busy}
+                          type="number"
+                          step="0.05"
+                          value={form.surface_area_factor}
+                          onChange={(e) => setForm((prev) => ({ ...prev, surface_area_factor: Number(e.target.value) }))}
+                        />
+                      </label>
                     )}
 
                     {form.algorithm === "v3" && (
@@ -1298,7 +1331,8 @@ export default function App() {
 
           {activeDetail?.config.dimension === "3d" &&
             (activeDetail?.config.algorithm === "v2" ||
-              activeDetail?.config.algorithm === "v3") && (
+              activeDetail?.config.algorithm === "v3" ||
+              activeDetail?.config.algorithm === "v4_test") && (
             <div className="mesh-viewer-card">
               <div className="video-toolbar">
                 <div>

@@ -1,5 +1,5 @@
 export type Dimension = "3d";
-export type Algorithm = "v1" | "v2" | "v3";
+export type Algorithm = "v1" | "v2" | "v3" | "v4_test";
 export type ObjectiveMode = "K" | "C" | "Q";
 export type ObjectiveSense = "min" | "max";
 
@@ -21,6 +21,7 @@ export type JobConfig = {
   convergence_rtol_jraw: number;
   ns_alpha_j: number;
   ns_alpha_c: number;
+  surface_area_factor: number;
   final_refine: boolean;
   final_hmax_factor: number;
   final_hmin_ratio: number;
