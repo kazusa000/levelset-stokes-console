@@ -10,7 +10,7 @@ import {
   YAxis
 } from "recharts";
 import FinalMeshViewer from "./FinalMeshViewer";
-import type { ExperimentDetail, ExperimentSummary, FinalMeshData, JobConfig } from "./types";
+import type { ExperimentDetail, ExperimentSummary, FinalMeshData, JobConfig, MeshOption, PostSmoothConfig } from "./types";
 
 type Locale = "zh" | "en";
 type ViewMode = "create" | "experiment";
@@ -32,15 +32,23 @@ const defaultConfig: JobConfig = {
   convergence_rtol_jraw: 5e-3,
   ns_alpha_j: 0.5,
   ns_alpha_c: 0.5,
+  hilbert_alpha_factor: 16.0,
   surface_area_factor: 1.05,
+  area_correction_gain: 0.1,
+  area_gram_rel_tol: 1e-3,
+  shift_x: 0.0,
+  shift_y: 0.0,
+  shift_z: 0.0,
   final_refine: true,
-  final_hmax_factor: 1.0,
+  final_hmax_factor: 0.1,
   final_hmin_ratio: 0.1,
   final_hausd_ratio: 3.0,
   final_rmc: 1e-4,
   smooth_steps: 1,
-  smooth_eps_factor: 0.05,
+  smooth_eps_factor: 1.0,
   smooth_iso_shift: 0.0,
+  feature_smooth_kappa_factor: 1.0,
+  feature_smooth_min_weight: 0.08,
   penalty: 100,
   camera_preset: "isometric",
   fps: 5,
@@ -89,11 +97,22 @@ const ui = {
     smoothSteps: "平滑步数",
     smoothEpsFactor: "平滑 eps 系数",
     smoothIsoShift: "平滑等值面偏移",
+    smoothMode: "平滑模式",
+    smoothModeGlobal: "普通平滑",
+    smoothModeFeature: "特征保护",
+    featureSmoothKappaFactor: "特征保护曲率系数",
+    featureSmoothMinWeight: "特征保护最小权重",
     convergenceWindow: "收敛窗口",
     convergenceRtolJraw: "Jraw 收敛阈值",
     nsAlphaJ: "NS alphaJ 系数",
     nsAlphaC: "NS alphaC 系数",
+    hilbertAlphaFactor: "Hilbert alpha 系数",
     surfaceAreaFactor: "面积上界倍率",
+    areaCorrectionGain: "面积修正 gain",
+    areaGramRelTol: "面积 Gram 相对阈值",
+    shiftX: "整体平移 X",
+    shiftY: "整体平移 Y",
+    shiftZ: "整体平移 Z",
     camera: "相机角度",
     showEdges: "显示边",
     start: "启动任务",
@@ -107,9 +126,23 @@ const ui = {
     refreshPreview: "刷新当前角度预览",
     renderFinal: "生成当前角度最终动画",
     finalMeshViewer: "最终 3D 形状",
+    meshToView: "选择 mesh",
+    postSmoothOpen: "Smooth...",
+    postSmoothPanel: "独立后处理 Smooth",
+    postSmoothRun: "运行 Smooth",
+    postSmoothRunning: "正在执行 Smooth...",
+    postSmoothClose: "收起",
+    postSmoothOriginal: "原始 final",
+    postSmoothResult: "查看 smooth 版",
+    postSmoothReady: "已生成当前 mesh 对应的 postsmooth 结果，可直接切换查看。",
+    postSmoothUnavailable: "需要先有可用的 Final 3D mesh 才能执行独立 Smooth。",
+    postSmoothSuccess: "已完成独立 Smooth。",
+    postSmoothFailed: "独立 Smooth 失败",
+    finalMeshVerifiedPostSmooth: "当前显示的是独立后处理生成的 Omega.postsmooth.mesh，不会覆盖原始 final mesh。",
     finalMeshSource: "来源",
     finalMeshSelection: "提取方式",
     experimentConfig: "实验参数",
+    createFromConfig: "基于此参数新建实验",
     finalMeshVerifiedFinal: "当前显示的是 Omega.final.mesh，也就是算法最终后处理阶段保存的最终网格。",
     finalMeshFallback: "当前显示的不是 Omega.final.mesh，而是最后一个 Omega.N.mesh 回退结果。",
     finalMeshPending: "最终形状尚未可用。收敛并完成算法的最终后处理后会显示在这里。",
@@ -134,7 +167,8 @@ const ui = {
     refreshedPreview: (view: string) => `已刷新 ${view} 角度预览`,
     renderedFinal: (view: string) => `已生成 ${view} 角度最终动画`,
     deleteConfirm: (id: string) => `再次点击“确认删除”以删除实验 ${id}`,
-    metrics: { iteration: "Iteration", objective: "Objective", volume: "Volume", stage: "Stage" }
+    loadedConfigForCreate: "已载入该实验参数，可直接调整后启动。",
+    metrics: { iteration: "Iteration", objective: "Objective", volume: "Volume", stage: "Stage", duration: "耗时" }
   },
   en: {
     subtitle: "Local experiment console",
@@ -174,11 +208,22 @@ const ui = {
     smoothSteps: "Smooth steps",
     smoothEpsFactor: "Smooth eps factor",
     smoothIsoShift: "Smooth iso shift",
+    smoothMode: "Smooth mode",
+    smoothModeGlobal: "Global",
+    smoothModeFeature: "Feature-preserving",
+    featureSmoothKappaFactor: "Feature kappa factor",
+    featureSmoothMinWeight: "Feature min weight",
     convergenceWindow: "Convergence window",
     convergenceRtolJraw: "Jraw convergence rtol",
     nsAlphaJ: "NS alphaJ factor",
     nsAlphaC: "NS alphaC factor",
+    hilbertAlphaFactor: "Hilbert alpha factor",
     surfaceAreaFactor: "Surface area factor",
+    areaCorrectionGain: "Area correction gain",
+    areaGramRelTol: "Area Gram relative tolerance",
+    shiftX: "Global shift X",
+    shiftY: "Global shift Y",
+    shiftZ: "Global shift Z",
     camera: "Camera",
     showEdges: "Show edges",
     start: "Start",
@@ -192,9 +237,23 @@ const ui = {
     refreshPreview: "Refresh current preview",
     renderFinal: "Render final animation",
     finalMeshViewer: "Final 3D mesh",
+    meshToView: "Mesh to view",
+    postSmoothOpen: "Smooth...",
+    postSmoothPanel: "Standalone post-smooth",
+    postSmoothRun: "Run Smooth",
+    postSmoothRunning: "Running smooth...",
+    postSmoothClose: "Collapse",
+    postSmoothOriginal: "Original final",
+    postSmoothResult: "View smooth mesh",
+    postSmoothReady: "A post-smoothed version of the selected mesh is available. You can switch to it directly.",
+    postSmoothUnavailable: "A final 3D mesh is required before standalone smoothing can run.",
+    postSmoothSuccess: "Standalone smooth finished.",
+    postSmoothFailed: "Standalone smooth failed",
+    finalMeshVerifiedPostSmooth: "This viewer is showing Omega.postsmooth.mesh from the standalone post-processing step. The original final mesh is preserved.",
     finalMeshSource: "Source",
     finalMeshSelection: "Selection",
     experimentConfig: "Experiment Config",
+    createFromConfig: "Use Config for New Experiment",
     finalMeshVerifiedFinal: "This viewer is showing Omega.final.mesh, i.e. the mesh saved by the algorithm's final post-processing stage.",
     finalMeshFallback: "This viewer is not showing Omega.final.mesh. It is falling back to the last Omega.N.mesh.",
     finalMeshPending: "The final mesh is not available yet. It will appear here after convergence and the algorithm's final post-processing.",
@@ -219,7 +278,8 @@ const ui = {
     refreshedPreview: (view: string) => `Refreshed ${view} preview`,
     renderedFinal: (view: string) => `Rendered final ${view} animation`,
     deleteConfirm: (id: string) => `Click confirm again to delete experiment ${id}`,
-    metrics: { iteration: "Iteration", objective: "Objective", volume: "Volume", stage: "Stage" }
+    loadedConfigForCreate: "Loaded this experiment config into the new experiment form.",
+    metrics: { iteration: "Iteration", objective: "Objective", volume: "Volume", stage: "Stage", duration: "Elapsed" }
   }
 } as const;
 
@@ -237,6 +297,7 @@ function shapePreviewSvg(dimension: JobConfig["dimension"], shape: string): stri
 
   const silhouettes: Record<string, string> = {
     sphere: `<circle cx="80" cy="60" r="30" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`,
+    sphere_fine: `<circle cx="80" cy="60" r="30" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`,
     sphere_bump: `<path d="M50,60c0,-17 13,-30 30,-30c16,0 28,10 30,24c10,0 18,8 18,17c0,10 -9,17 -20,17c-4,0 -8,-1 -11,-3c-5,3 -11,5 -17,5c-17,0 -30,-13 -30,-30z" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`,
     prolate: `<ellipse cx="80" cy="60" rx="24" ry="36" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`,
     oblate: `<ellipse cx="80" cy="60" rx="36" ry="22" fill="url(#g)" stroke="#4b6ea9" stroke-width="3"/>`,
@@ -320,7 +381,7 @@ function patchDefaults(config: JobConfig): JobConfig {
       penalty: undefined
     };
   }
-  if (config.algorithm === "v4_test") {
+  if (config.algorithm === "v4") {
     return {
       ...config,
       step_k: config.step_k ?? 0.1,
@@ -329,6 +390,156 @@ function patchDefaults(config: JobConfig): JobConfig {
       ns_alpha_j: config.ns_alpha_j ?? 0.5,
       ns_alpha_c: config.ns_alpha_c ?? 0.5,
       surface_area_factor: config.surface_area_factor ?? 1.05,
+      final_refine: config.final_refine ?? true,
+      final_hmax_factor: config.final_hmax_factor ?? 0.1,
+      final_hmin_ratio: config.final_hmin_ratio ?? 0.1,
+      final_hausd_ratio: config.final_hausd_ratio ?? 3.0,
+      final_rmc: config.final_rmc ?? 1e-4,
+      smooth_steps: config.smooth_steps ?? 1,
+      smooth_eps_factor: config.smooth_eps_factor ?? 1.0,
+      smooth_iso_shift: config.smooth_iso_shift ?? 0.0,
+      penalty: undefined
+    };
+  }
+  if (config.algorithm === "v6") {
+    return {
+      ...config,
+      objective_mode: config.objective_mode ?? "C",
+      objective_sense: config.objective_sense ?? "min",
+      i_axis: config.i_axis ?? 0,
+      j_axis: config.j_axis ?? 0,
+      step_k: config.step_k ?? 0.1,
+      convergence_window: config.convergence_window ?? 5,
+      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
+      ns_alpha_j: config.ns_alpha_j ?? 0.5,
+      ns_alpha_c: config.ns_alpha_c ?? 0.5,
+      hilbert_alpha_factor: config.hilbert_alpha_factor ?? 16.0,
+      surface_area_factor: config.surface_area_factor ?? 1.05,
+      shift_x: config.shift_x ?? 0.0,
+      shift_y: config.shift_y ?? 0.0,
+      shift_z: config.shift_z ?? 0.0,
+      penalty: undefined
+    };
+  }
+  if (config.algorithm === "v7") {
+    return {
+      ...config,
+      objective_mode: config.objective_mode ?? "C",
+      objective_sense: config.objective_sense ?? "min",
+      i_axis: config.i_axis ?? 0,
+      j_axis: config.j_axis ?? 0,
+      step_k: config.step_k ?? 0.1,
+      convergence_window: config.convergence_window ?? 5,
+      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
+      ns_alpha_j: config.ns_alpha_j ?? 0.5,
+      ns_alpha_c: config.ns_alpha_c ?? 0.5,
+      surface_area_factor: config.surface_area_factor ?? 1.05,
+      shift_x: config.shift_x ?? 0.0,
+      shift_y: config.shift_y ?? 0.0,
+      shift_z: config.shift_z ?? 0.0,
+      final_refine: config.final_refine ?? true,
+      final_hmax_factor: config.final_hmax_factor ?? 0.1,
+      final_hmin_ratio: config.final_hmin_ratio ?? 0.1,
+      final_hausd_ratio: config.final_hausd_ratio ?? 3.0,
+      final_rmc: config.final_rmc ?? 1e-4,
+      smooth_steps: config.smooth_steps ?? 1,
+      smooth_eps_factor: config.smooth_eps_factor ?? 0.1,
+      smooth_iso_shift: config.smooth_iso_shift ?? 0.0,
+      penalty: undefined
+    };
+  }
+  if (config.algorithm === "v8") {
+    return {
+      ...config,
+      objective_mode: config.objective_mode ?? "C",
+      objective_sense: config.objective_sense ?? "min",
+      i_axis: config.i_axis ?? 0,
+      j_axis: config.j_axis ?? 0,
+      step_k: config.step_k ?? 0.1,
+      convergence_window: config.convergence_window ?? 5,
+      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
+      ns_alpha_j: config.ns_alpha_j ?? 0.5,
+      ns_alpha_c: config.ns_alpha_c ?? 0.5,
+      surface_area_factor: config.surface_area_factor ?? 1.05,
+      shift_x: config.shift_x ?? 0.0,
+      shift_y: config.shift_y ?? 0.0,
+      shift_z: config.shift_z ?? 0.0,
+      final_refine: config.final_refine ?? true,
+      final_hmax_factor: config.final_hmax_factor ?? 0.1,
+      final_hmin_ratio: config.final_hmin_ratio ?? 0.1,
+      final_hausd_ratio: config.final_hausd_ratio ?? 3.0,
+      final_rmc: config.final_rmc ?? 1e-4,
+      smooth_steps: config.smooth_steps ?? 1,
+      smooth_eps_factor: config.smooth_eps_factor ?? 1.0,
+      smooth_iso_shift: config.smooth_iso_shift ?? 0.0,
+      feature_smooth_kappa_factor: config.feature_smooth_kappa_factor ?? 1.0,
+      feature_smooth_min_weight: config.feature_smooth_min_weight ?? 0.08,
+      penalty: undefined
+    };
+  }
+  if (config.algorithm === "v9") {
+    return {
+      ...config,
+      objective_mode: config.objective_mode ?? "C",
+      objective_sense: config.objective_sense ?? "min",
+      i_axis: config.i_axis ?? 0,
+      j_axis: config.j_axis ?? 0,
+      step_k: config.step_k ?? 0.1,
+      convergence_window: config.convergence_window ?? 5,
+      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
+      ns_alpha_j: config.ns_alpha_j ?? 0.5,
+      ns_alpha_c: config.ns_alpha_c ?? 0.5,
+      surface_area_factor: config.surface_area_factor ?? 1.05,
+      area_correction_gain: config.area_correction_gain ?? 0.1,
+      area_gram_rel_tol: config.area_gram_rel_tol ?? 1e-3,
+      shift_x: config.shift_x ?? 0.0,
+      shift_y: config.shift_y ?? 0.0,
+      shift_z: config.shift_z ?? 0.0,
+      penalty: undefined
+    };
+  }
+  if (config.algorithm === "v10_test" || config.algorithm === "v11_test") {
+    return {
+      ...config,
+      objective_mode: config.objective_mode ?? "C",
+      objective_sense: config.objective_sense ?? "min",
+      i_axis: config.i_axis ?? 0,
+      j_axis: config.j_axis ?? 0,
+      step_k: config.step_k ?? 0.1,
+      convergence_window: config.convergence_window ?? 5,
+      convergence_rtol_jraw: config.convergence_rtol_jraw ?? (config.algorithm === "v11_test" ? 5e-2 : 5e-3),
+      ns_alpha_j: config.ns_alpha_j ?? 0.5,
+      ns_alpha_c: config.ns_alpha_c ?? 0.5,
+      surface_area_factor: config.surface_area_factor ?? 1.05,
+      shift_x: config.shift_x ?? 0.0,
+      shift_y: config.shift_y ?? 0.0,
+      shift_z: config.shift_z ?? 0.0,
+      penalty: undefined
+    };
+  }
+  if (config.algorithm === "v5") {
+    return {
+      ...config,
+      objective_mode: config.objective_mode ?? "C",
+      objective_sense: config.objective_sense ?? "min",
+      i_axis: config.i_axis ?? 0,
+      j_axis: config.j_axis ?? 0,
+      step_k: config.step_k ?? 0.1,
+      convergence_window: config.convergence_window ?? 5,
+      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
+      ns_alpha_j: config.ns_alpha_j ?? 0.5,
+      ns_alpha_c: config.ns_alpha_c ?? 0.5,
+      shift_x: config.shift_x ?? 0.0,
+      shift_y: config.shift_y ?? 0.0,
+      shift_z: config.shift_z ?? 0.0,
+      final_refine: config.final_refine ?? true,
+      final_hmax_factor: config.final_hmax_factor ?? 0.1,
+      final_hmin_ratio: config.final_hmin_ratio ?? 0.1,
+      final_hausd_ratio: config.final_hausd_ratio ?? 3.0,
+      final_rmc: config.final_rmc ?? 1e-4,
+      smooth_steps: config.smooth_steps ?? 1,
+      smooth_eps_factor: config.smooth_eps_factor ?? 1.0,
+      smooth_iso_shift: config.smooth_iso_shift ?? 0.0,
       penalty: undefined
     };
   }
@@ -380,6 +591,55 @@ function formatHmax(config: Pick<JobConfig, "hmax">): string {
   return `hmax=${config.hmax}`;
 }
 
+function formatDuration(seconds?: number | null): string {
+  if (seconds == null || !Number.isFinite(seconds)) {
+    return "-";
+  }
+  const total = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  if (hours > 0) {
+    return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(secs).padStart(2, "0")}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${String(secs).padStart(2, "0")}s`;
+  }
+  return `${secs}s`;
+}
+
+function buildPostSmoothConfig(detail: ExperimentDetail | null): PostSmoothConfig {
+  return {
+    mesh_name: detail?.postsmooth_config?.mesh_name ?? null,
+    final_hmax_factor: detail?.postsmooth_config?.final_hmax_factor ?? detail?.config.final_hmax_factor ?? 0.1,
+    final_hmin_ratio: detail?.postsmooth_config?.final_hmin_ratio ?? detail?.config.final_hmin_ratio ?? 0.1,
+    final_hausd_ratio: detail?.postsmooth_config?.final_hausd_ratio ?? detail?.config.final_hausd_ratio ?? 3.0,
+    final_rmc: detail?.postsmooth_config?.final_rmc ?? detail?.config.final_rmc ?? 1e-4,
+    smooth_steps: detail?.postsmooth_config?.smooth_steps ?? detail?.config.smooth_steps ?? 1,
+    smooth_eps_factor: detail?.postsmooth_config?.smooth_eps_factor ?? detail?.config.smooth_eps_factor ?? 1.0,
+    smooth_iso_shift: detail?.postsmooth_config?.smooth_iso_shift ?? detail?.config.smooth_iso_shift ?? 0.0,
+    smooth_mode: detail?.postsmooth_config?.smooth_mode ?? "global",
+    feature_smooth_kappa_factor:
+      detail?.postsmooth_config?.feature_smooth_kappa_factor ?? detail?.config.feature_smooth_kappa_factor ?? 0.1,
+    feature_smooth_min_weight:
+      detail?.postsmooth_config?.feature_smooth_min_weight ?? detail?.config.feature_smooth_min_weight ?? 0.08
+  };
+}
+
+function smoothNameForMesh(meshName: string | null): string | null {
+  if (!meshName) {
+    return null;
+  }
+  if (meshName === "Omega.final.mesh") {
+    return "Omega.final.postsmooth.mesh";
+  }
+  const iterMatch = /^Omega\.(\d+)\.mesh$/.exec(meshName);
+  if (iterMatch) {
+    return `Omega.${iterMatch[1]}.postsmooth.mesh`;
+  }
+  return meshName.endsWith(".mesh") ? `${meshName.slice(0, -5)}.postsmooth.mesh` : null;
+}
+
 export default function App() {
   const [locale, setLocale] = useState<Locale>(() => {
     const stored = window.localStorage.getItem("levelset-console-locale");
@@ -401,10 +661,14 @@ export default function App() {
   >("/api/experiments", 5000);
 
   const [form, setForm] = useState<JobConfig>(defaultConfig);
+  const [postSmoothForm, setPostSmoothForm] = useState<PostSmoothConfig>(() => buildPostSmoothConfig(null));
   const [busy, setBusy] = useState(false);
+  const [postSmoothBusy, setPostSmoothBusy] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
   const [shapePreviewFailed, setShapePreviewFailed] = useState(false);
+  const [showPostSmoothPanel, setShowPostSmoothPanel] = useState(false);
+  const [selectedMeshName, setSelectedMeshName] = useState<string | null>(null);
   const [sectionOpen, setSectionOpen] = useState({
     running: true,
     favorites: true,
@@ -430,7 +694,12 @@ export default function App() {
     () => (selectedExperimentId ? `/api/experiments/${encodeURIComponent(selectedExperimentId)}` : ""),
     [selectedExperimentId]
   );
-  const { data: detailData, setData: setDetailData } = usePolling<ExperimentDetail>(detailUrl, 2500, Boolean(selectedExperimentId));
+  const shouldPollDetail = Boolean(selectedExperimentId && runningIds.has(selectedExperimentId));
+  const { data: detailData, error: detailError, setData: setDetailData } = usePolling<ExperimentDetail>(
+    detailUrl,
+    2500,
+    shouldPollDetail
+  );
 
   const shapes = useMemo(() => configData?.shapes?.[form.dimension] ?? [], [configData, form.dimension]);
   const presets = configData?.presets ?? [];
@@ -446,17 +715,38 @@ export default function App() {
     form.algorithm === "v1" ||
     form.algorithm === "v2" ||
     form.algorithm === "v3" ||
-    form.algorithm === "v4_test";
+    form.algorithm === "v4" ||
+    form.algorithm === "v5" ||
+    form.algorithm === "v6" ||
+    form.algorithm === "v7" ||
+    form.algorithm === "v8" ||
+    form.algorithm === "v9" ||
+    form.algorithm === "v10_test" ||
+    form.algorithm === "v11_test";
   const supportsQ =
     form.algorithm === "v1" ||
     form.algorithm === "v2" ||
     form.algorithm === "v3" ||
-    form.algorithm === "v4_test";
+    form.algorithm === "v4" ||
+    form.algorithm === "v5" ||
+    form.algorithm === "v6" ||
+    form.algorithm === "v7" ||
+    form.algorithm === "v8" ||
+    form.algorithm === "v9" ||
+    form.algorithm === "v10_test" ||
+    form.algorithm === "v11_test";
   const supportsObjectiveSense =
     form.algorithm === "v1" ||
     form.algorithm === "v2" ||
     form.algorithm === "v3" ||
-    form.algorithm === "v4_test";
+    form.algorithm === "v4" ||
+    form.algorithm === "v5" ||
+    form.algorithm === "v6" ||
+    form.algorithm === "v7" ||
+    form.algorithm === "v8" ||
+    form.algorithm === "v9" ||
+    form.algorithm === "v10_test" ||
+    form.algorithm === "v11_test";
   const selectedShape = shapes.find((shape: any) => shape.key === form.initial_shape) ?? null;
   const shapePreviewSvgUrl = useMemo(
     () => `data:image/svg+xml;utf8,${encodeURIComponent(shapePreviewSvg(form.dimension, form.initial_shape))}`,
@@ -532,24 +822,123 @@ export default function App() {
   }, [selectedExperimentId, runningExperiments, runningIds, experimentsData, viewMode]);
 
   const activeDetail = activeRunning ?? detailData ?? null;
-  const objectiveSeries = activeDetail?.series?.["obj.txt"];
+  const objectiveSeries =
+    (activeDetail?.config.algorithm === "v10_test" || activeDetail?.config.algorithm === "v11_test")
+      ? activeDetail?.series?.["obj_before.txt"] ?? activeDetail?.series?.["obj.txt"]
+      : activeDetail?.series?.["obj.txt"];
   const volumeSeries = activeDetail?.series?.["vol.txt"];
   const activeCameraUrl =
     activeDetail?.preview_urls?.[form.camera_preset] ?? activeDetail?.final_urls?.[form.camera_preset] ?? null;
-  const finalMeshUrl =
+  const supportsFinalMesh =
     activeDetail?.config.dimension === "3d" &&
     (
       activeDetail?.config.algorithm === "v2" ||
       activeDetail?.config.algorithm === "v3" ||
-      activeDetail?.config.algorithm === "v4_test"
-    )
-      ? activeDetail.final_mesh_url ?? null
+      activeDetail?.config.algorithm === "v4" ||
+      activeDetail?.config.algorithm === "v5" ||
+      activeDetail?.config.algorithm === "v6" ||
+      activeDetail?.config.algorithm === "v7" ||
+      activeDetail?.config.algorithm === "v8" ||
+      activeDetail?.config.algorithm === "v9" ||
+      activeDetail?.config.algorithm === "v10_test" ||
+      activeDetail?.config.algorithm === "v11_test"
+    );
+  const meshOptions: MeshOption[] = supportsFinalMesh ? activeDetail?.mesh_options ?? [] : [];
+  const defaultMeshName =
+    meshOptions.find((option) => option.is_default)?.name ?? meshOptions[0]?.name ?? null;
+  const effectiveMeshName =
+    selectedMeshName && meshOptions.some((option) => option.name === selectedMeshName)
+      ? selectedMeshName
+      : defaultMeshName;
+  const selectedMeshOption =
+    meshOptions.find((option) => option.name === effectiveMeshName) ?? null;
+  const selectedSmoothName =
+    selectedMeshOption?.smooth_name ?? smoothNameForMesh(effectiveMeshName);
+  const selectedSmoothOption =
+    selectedSmoothName ? meshOptions.find((option) => option.name === selectedSmoothName) ?? null : null;
+  const displayedMeshUrl =
+    supportsFinalMesh && activeDetail?.id && effectiveMeshName
+      ? `/api/experiments/${encodeURIComponent(activeDetail.id)}/mesh?name=${encodeURIComponent(effectiveMeshName)}`
       : null;
-  const { data: finalMeshData, error: finalMeshError } = usePolling<FinalMeshData>(
-    finalMeshUrl ?? "",
-    5000,
-    Boolean(finalMeshUrl)
-  );
+  const [finalMeshData, setFinalMeshData] = useState<FinalMeshData | null>(null);
+  const [finalMeshError, setFinalMeshError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedExperimentId || !detailUrl || shouldPollDetail) {
+      return;
+    }
+
+    let mounted = true;
+    void (async () => {
+      try {
+        const response = await fetch(detailUrl);
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+        const payload = await response.json();
+        if (mounted) {
+          setDetailData(payload);
+        }
+      } catch (error) {
+        if (mounted) {
+          setMessage(error instanceof Error ? error.message : t.startFailed);
+        }
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedExperimentId, detailUrl, shouldPollDetail, setDetailData, t.startFailed]);
+
+  useEffect(() => {
+    if (!displayedMeshUrl) {
+      setFinalMeshData(null);
+      setFinalMeshError(null);
+      return;
+    }
+
+    let mounted = true;
+    setFinalMeshError(null);
+    void (async () => {
+      try {
+        const response = await fetch(displayedMeshUrl);
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+        const payload = await response.json();
+        if (mounted) {
+          setFinalMeshData(payload);
+          setFinalMeshError(null);
+        }
+      } catch (error) {
+        if (mounted) {
+          setFinalMeshData(null);
+          setFinalMeshError(error instanceof Error ? error.message : "请求失败");
+        }
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [displayedMeshUrl]);
+
+  useEffect(() => {
+    setShowPostSmoothPanel(false);
+    setSelectedMeshName(null);
+    setPostSmoothForm(buildPostSmoothConfig(activeDetail));
+  }, [activeDetail?.id]);
+
+  useEffect(() => {
+    if (!meshOptions.length) {
+      setSelectedMeshName(null);
+      return;
+    }
+    if (!selectedMeshName || !meshOptions.some((option) => option.name === selectedMeshName)) {
+      setSelectedMeshName(defaultMeshName);
+    }
+  }, [meshOptions, selectedMeshName, defaultMeshName]);
 
   const handleStart = async () => {
     try {
@@ -619,6 +1008,34 @@ export default function App() {
     }
   };
 
+  const handleRunPostSmooth = async () => {
+    try {
+      const targetId = activeDetail?.id ?? selectedExperimentId;
+      if (!targetId) {
+        throw new Error("No selected experiment.");
+      }
+      if (!effectiveMeshName) {
+        throw new Error(t.postSmoothUnavailable);
+      }
+      setPostSmoothBusy(true);
+      setMessage("");
+      const result = await postJson<ExperimentDetail>(
+        `/api/experiments/${encodeURIComponent(targetId)}/post-smooth`,
+        { ...postSmoothForm, mesh_name: effectiveMeshName }
+      );
+      setDetailData(result);
+      const nextMeshName = smoothNameForMesh(effectiveMeshName);
+      if (nextMeshName) {
+        setSelectedMeshName(nextMeshName);
+      }
+      setMessage(t.postSmoothSuccess);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : t.postSmoothFailed);
+    } finally {
+      setPostSmoothBusy(false);
+    }
+  };
+
   const handleDeleteExperiment = async (id: string) => {
     if (pendingDeleteId !== id) {
       setPendingDeleteId(id);
@@ -679,7 +1096,7 @@ export default function App() {
     if (!preset) {
       return;
     }
-    setForm({ ...defaultConfig, ...preset.config });
+    setForm({ ...defaultConfig, ...preset.config, mesh_path: null });
   };
 
   const handlePresetSave = async () => {
@@ -689,6 +1106,17 @@ export default function App() {
     }
     await postJson("/api/presets", { name, config: form });
     setMessage(t.savedPreset(name));
+  };
+
+  const handleCreateFromConfig = () => {
+    if (!activeDetail?.config) {
+      return;
+    }
+
+    setForm(patchDefaults({ ...defaultConfig, ...activeDetail.config }));
+    setPendingDeleteId(null);
+    setViewMode("create");
+    setMessage(t.loadedConfigForCreate);
   };
 
   return (
@@ -742,6 +1170,7 @@ export default function App() {
                       {formatTarget(job.config)} · it={job.summary.iteration ?? "-"}
                     </span>
                     <span>{formatHmax(job.config)} · {job.summary.stage ?? String(job.meta.status ?? "running")}</span>
+                    <span>{t.metrics.duration}: {formatDuration(job.summary.duration_seconds)}</span>
                   </button>
                   <button
                     className="history-delete danger"
@@ -782,6 +1211,7 @@ export default function App() {
                     {experiment.config.dimension.toUpperCase()} / {experiment.config.algorithm} / {experiment.config.initial_shape}
                   </strong>
                   <span>{formatTarget(experiment.config)} · {formatHmax(experiment.config)}</span>
+                  <span>{t.metrics.duration}: {formatDuration(experiment.summary.duration_seconds)}</span>
                 </button>
                 <button
                   className={`history-favorite ${experiment.meta?.favorite ? "active" : ""}`}
@@ -830,6 +1260,7 @@ export default function App() {
                     {experiment.config.dimension.toUpperCase()} / {experiment.config.algorithm} / {experiment.config.initial_shape}
                   </strong>
                   <span>{formatTarget(experiment.config)} · {formatHmax(experiment.config)}</span>
+                  <span>{t.metrics.duration}: {formatDuration(experiment.summary.duration_seconds)}</span>
                 </button>
                 <button
                   className={`history-favorite ${experiment.meta?.favorite ? "active" : ""}`}
@@ -887,14 +1318,29 @@ export default function App() {
                   <select
                     disabled={busy}
                     value={form.algorithm}
-                    onChange={(e) =>
-                      setForm((prev) => patchDefaults({ ...prev, algorithm: e.target.value as JobConfig["algorithm"] }))
-                    }
+                    onChange={(e) => {
+                      const algorithm = e.target.value as JobConfig["algorithm"];
+                      setForm((prev) =>
+                        patchDefaults({
+                          ...prev,
+                          algorithm,
+                          convergence_rtol_jraw: algorithm === "v11_test" ? 5e-2 : prev.convergence_rtol_jraw,
+                          smooth_eps_factor: algorithm === "v7" ? 0.1 : prev.smooth_eps_factor
+                        })
+                      );
+                    }}
                   >
                     <option value="v1">3Dv1</option>
                     <option value="v2">3Dv2</option>
                     <option value="v3">3Dv3</option>
-                    <option value="v4_test">3Dv4_test</option>
+                    <option value="v4">3Dv4</option>
+                    <option value="v5">3Dv5</option>
+                    <option value="v6">3Dv6</option>
+                    <option value="v7">3Dv7</option>
+                    <option value="v8">3Dv8</option>
+                    <option value="v9">3Dv9</option>
+                    <option value="v10_test">3Dv10_test</option>
+                    <option value="v11_test">3Dv11_test</option>
                   </select>
                 </label>
 
@@ -903,7 +1349,7 @@ export default function App() {
                   <select
                     disabled={busy}
                     value={form.initial_shape}
-                    onChange={(e) => setForm((prev) => ({ ...prev, initial_shape: e.target.value }))}
+                    onChange={(e) => setForm((prev) => ({ ...prev, initial_shape: e.target.value, mesh_path: null }))}
                   >
                     {shapes.map((shape: any) => (
                       <option key={shape.key} value={shape.key}>
@@ -999,7 +1445,7 @@ export default function App() {
                   <input disabled={busy} type="number" value={form.max_iters} onChange={(e) => setForm((prev) => ({ ...prev, max_iters: Number(e.target.value) }))} />
                 </label>
 
-                {(form.algorithm === "v2" || form.algorithm === "v3" || form.algorithm === "v4_test") && (
+                {(form.algorithm === "v2" || form.algorithm === "v3" || form.algorithm === "v4" || form.algorithm === "v5" || form.algorithm === "v6" || form.algorithm === "v7" || form.algorithm === "v8" || form.algorithm === "v9" || form.algorithm === "v10_test" || form.algorithm === "v11_test") && (
                   <>
                     <label>
                       {t.convergenceWindow}
@@ -1024,7 +1470,7 @@ export default function App() {
                       />
                     </label>
 
-                    {(form.algorithm === "v2" || form.algorithm === "v3" || form.algorithm === "v4_test") && (
+                    {(form.algorithm === "v2" || form.algorithm === "v3" || form.algorithm === "v4" || form.algorithm === "v5" || form.algorithm === "v6" || form.algorithm === "v7" || form.algorithm === "v8" || form.algorithm === "v9" || form.algorithm === "v10_test" || form.algorithm === "v11_test") && (
                       <>
                         <label>
                           {t.nsAlphaJ}
@@ -1047,23 +1493,101 @@ export default function App() {
                             onChange={(e) => setForm((prev) => ({ ...prev, ns_alpha_c: Number(e.target.value) }))}
                           />
                         </label>
+
+                        {form.algorithm === "v6" && (
+                          <label>
+                            {t.hilbertAlphaFactor}
+                            <input
+                              disabled={busy}
+                              type="number"
+                              step="1"
+                              min="0.01"
+                              value={form.hilbert_alpha_factor}
+                              onChange={(e) => setForm((prev) => ({ ...prev, hilbert_alpha_factor: Number(e.target.value) }))}
+                            />
+                          </label>
+                        )}
                       </>
                     )}
 
-                    {form.algorithm === "v4_test" && (
-                      <label>
-                        {t.surfaceAreaFactor}
-                        <input
-                          disabled={busy}
-                          type="number"
-                          step="0.05"
-                          value={form.surface_area_factor}
-                          onChange={(e) => setForm((prev) => ({ ...prev, surface_area_factor: Number(e.target.value) }))}
-                        />
-                      </label>
+                    {(form.algorithm === "v4" || form.algorithm === "v6" || form.algorithm === "v7" || form.algorithm === "v8" || form.algorithm === "v9" || form.algorithm === "v10_test" || form.algorithm === "v11_test") && (
+                      <>
+                        <label>
+                          {t.surfaceAreaFactor}
+                          <input
+                            disabled={busy}
+                            type="number"
+                            step="0.05"
+                            value={form.surface_area_factor}
+                            onChange={(e) => setForm((prev) => ({ ...prev, surface_area_factor: Number(e.target.value) }))}
+                          />
+                        </label>
+
+                        {form.algorithm === "v9" && (
+                          <>
+                            <label>
+                              {t.areaCorrectionGain}
+                              <input
+                                disabled={busy}
+                                type="number"
+                                step="0.05"
+                                value={form.area_correction_gain}
+                                onChange={(e) => setForm((prev) => ({ ...prev, area_correction_gain: Number(e.target.value) }))}
+                              />
+                            </label>
+                            <label>
+                              {t.areaGramRelTol}
+                              <input
+                                disabled={busy}
+                                type="number"
+                                step="0.0005"
+                                value={form.area_gram_rel_tol}
+                                onChange={(e) => setForm((prev) => ({ ...prev, area_gram_rel_tol: Number(e.target.value) }))}
+                              />
+                            </label>
+                          </>
+                        )}
+                      </>
                     )}
 
-                    {form.algorithm === "v3" && (
+                    {(form.algorithm === "v5" || form.algorithm === "v6" || form.algorithm === "v7" || form.algorithm === "v8" || form.algorithm === "v9" || form.algorithm === "v10_test" || form.algorithm === "v11_test") && (
+                      <>
+                        <label>
+                          {t.shiftX}
+                          <input
+                            disabled={busy}
+                            type="number"
+                            step="0.1"
+                            value={form.shift_x}
+                            onChange={(e) => setForm((prev) => ({ ...prev, shift_x: Number(e.target.value) }))}
+                          />
+                        </label>
+
+                        <label>
+                          {t.shiftY}
+                          <input
+                            disabled={busy}
+                            type="number"
+                            step="0.1"
+                            value={form.shift_y}
+                            onChange={(e) => setForm((prev) => ({ ...prev, shift_y: Number(e.target.value) }))}
+                          />
+                        </label>
+
+                        <label>
+                          {t.shiftZ}
+                          <input
+                            disabled={busy}
+                            type="number"
+                            step="0.1"
+                            value={form.shift_z}
+                            onChange={(e) => setForm((prev) => ({ ...prev, shift_z: Number(e.target.value) }))}
+                          />
+                        </label>
+                      </>
+                    )}
+
+                    {(form.algorithm === "v3" || form.algorithm === "v4" || form.algorithm === "v5" || form.algorithm === "v7" || form.algorithm === "v8") && (
                       <>
                         <label className="inline-checkbox">
                           <input
@@ -1152,6 +1676,34 @@ export default function App() {
                             onChange={(e) => setForm((prev) => ({ ...prev, smooth_iso_shift: Number(e.target.value) }))}
                           />
                         </label>
+
+                        {form.algorithm === "v8" && (
+                          <>
+                            <label>
+                              {t.featureSmoothKappaFactor}
+                              <input
+                                disabled={busy || !form.final_refine}
+                                type="number"
+                                step="0.05"
+                                value={form.feature_smooth_kappa_factor}
+                                onChange={(e) => setForm((prev) => ({ ...prev, feature_smooth_kappa_factor: Number(e.target.value) }))}
+                              />
+                            </label>
+
+                            <label>
+                              {t.featureSmoothMinWeight}
+                              <input
+                                disabled={busy || !form.final_refine}
+                                type="number"
+                                min={0}
+                                max={1}
+                                step="0.01"
+                                value={form.feature_smooth_min_weight}
+                                onChange={(e) => setForm((prev) => ({ ...prev, feature_smooth_min_weight: Number(e.target.value) }))}
+                              />
+                            </label>
+                          </>
+                        )}
                       </>
                     )}
                   </>
@@ -1281,6 +1833,10 @@ export default function App() {
               <span>{t.metrics.stage}</span>
               <strong>{activeDetail?.summary?.stage ?? "-"}</strong>
             </div>
+            <div className="metric">
+              <span>{t.metrics.duration}</span>
+              <strong>{formatDuration(activeDetail?.summary?.duration_seconds)}</strong>
+            </div>
           </div>
 
           {activeDetail?.diagnostics?.length ? (
@@ -1329,10 +1885,7 @@ export default function App() {
             )}
           </div>
 
-          {activeDetail?.config.dimension === "3d" &&
-            (activeDetail?.config.algorithm === "v2" ||
-              activeDetail?.config.algorithm === "v3" ||
-              activeDetail?.config.algorithm === "v4_test") && (
+          {supportsFinalMesh && (
             <div className="mesh-viewer-card">
               <div className="video-toolbar">
                 <div>
@@ -1348,12 +1901,228 @@ export default function App() {
                         {t.finalMeshSource}: {finalMeshData.source} · {t.finalMeshSelection}: {finalMeshData.selection_mode ?? "unknown"}
                       </p>
                       <p className="toolbar-subtitle">
-                        {finalMeshData.source === "Omega.final.mesh" ? t.finalMeshVerifiedFinal : t.finalMeshFallback}
+                        {finalMeshData.source.endsWith(".postsmooth.mesh") || finalMeshData.source === "Omega.postsmooth.mesh"
+                          ? t.finalMeshVerifiedPostSmooth
+                          : finalMeshData.source === "Omega.final.mesh"
+                            ? t.finalMeshVerifiedFinal
+                            : t.finalMeshFallback}
                       </p>
                     </>
                   ) : null}
                 </div>
+                <div className="button-row">
+                  <label>
+                    {t.meshToView}
+                    <select
+                      disabled={!meshOptions.length}
+                      value={effectiveMeshName ?? ""}
+                      onChange={(event) => setSelectedMeshName(event.target.value || null)}
+                    >
+                      {meshOptions.map((option) => (
+                        <option key={option.name} value={option.name}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className="secondary"
+                    disabled={!effectiveMeshName || postSmoothBusy}
+                    onClick={() => {
+                      setShowPostSmoothPanel((prev) => {
+                        const next = !prev;
+                        if (next) {
+                          setPostSmoothForm(buildPostSmoothConfig(activeDetail));
+                        }
+                        return next;
+                      });
+                    }}
+                  >
+                    {showPostSmoothPanel ? t.postSmoothClose : t.postSmoothOpen}
+                  </button>
+                  {selectedSmoothOption ? (
+                    <button
+                      className="secondary"
+                      disabled={postSmoothBusy}
+                      onClick={() => setSelectedMeshName(selectedSmoothOption.name)}
+                    >
+                      {t.postSmoothResult}
+                    </button>
+                  ) : null}
+                </div>
               </div>
+
+              {selectedSmoothOption ? <div className="notice compact">{t.postSmoothReady}</div> : null}
+
+              {showPostSmoothPanel ? (
+                <div className="param-section post-smooth-panel">
+                  <div className="param-section-title">{t.postSmoothPanel}</div>
+                  <div className="param-grid">
+                    <label>
+                      <span>{t.finalHmaxFactor}</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={postSmoothForm.final_hmax_factor}
+                        onChange={(event) =>
+                          setPostSmoothForm((prev) => ({
+                            ...prev,
+                            final_hmax_factor: Number(event.target.value)
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>{t.finalHminRatio}</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={postSmoothForm.final_hmin_ratio}
+                        onChange={(event) =>
+                          setPostSmoothForm((prev) => ({
+                            ...prev,
+                            final_hmin_ratio: Number(event.target.value)
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>{t.finalHausdRatio}</span>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={postSmoothForm.final_hausd_ratio}
+                        onChange={(event) =>
+                          setPostSmoothForm((prev) => ({
+                            ...prev,
+                            final_hausd_ratio: Number(event.target.value)
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>{t.finalRmc}</span>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={postSmoothForm.final_rmc}
+                        onChange={(event) =>
+                          setPostSmoothForm((prev) => ({
+                            ...prev,
+                            final_rmc: Number(event.target.value)
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>{t.smoothSteps}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        step="1"
+                        value={postSmoothForm.smooth_steps}
+                        onChange={(event) =>
+                          setPostSmoothForm((prev) => ({
+                            ...prev,
+                            smooth_steps: Number(event.target.value)
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>{t.smoothEpsFactor}</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={postSmoothForm.smooth_eps_factor}
+                        onChange={(event) =>
+                          setPostSmoothForm((prev) => ({
+                            ...prev,
+                            smooth_eps_factor: Number(event.target.value)
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>{t.smoothIsoShift}</span>
+                      <input
+                        type="number"
+                        step="0.001"
+                        value={postSmoothForm.smooth_iso_shift}
+                        onChange={(event) =>
+                          setPostSmoothForm((prev) => ({
+                            ...prev,
+                            smooth_iso_shift: Number(event.target.value)
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>{t.smoothMode}</span>
+                      <select
+                        value={postSmoothForm.smooth_mode}
+                        onChange={(event) =>
+                          setPostSmoothForm((prev) => ({
+                            ...prev,
+                            smooth_mode: event.target.value as PostSmoothConfig["smooth_mode"]
+                          }))
+                        }
+                      >
+                        <option value="global">{t.smoothModeGlobal}</option>
+                        <option value="feature">{t.smoothModeFeature}</option>
+                      </select>
+                    </label>
+                    {postSmoothForm.smooth_mode === "feature" ? (
+                      <>
+                        <label>
+                          <span>{t.featureSmoothKappaFactor}</span>
+                          <input
+                            type="number"
+                            step="0.05"
+                            value={postSmoothForm.feature_smooth_kappa_factor}
+                            onChange={(event) =>
+                              setPostSmoothForm((prev) => ({
+                                ...prev,
+                                feature_smooth_kappa_factor: Number(event.target.value)
+                              }))
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>{t.featureSmoothMinWeight}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={1}
+                            step="0.01"
+                            value={postSmoothForm.feature_smooth_min_weight}
+                            onChange={(event) =>
+                              setPostSmoothForm((prev) => ({
+                                ...prev,
+                                feature_smooth_min_weight: Number(event.target.value)
+                              }))
+                            }
+                          />
+                        </label>
+                      </>
+                    ) : null}
+                  </div>
+                  <div className="button-row actions-row">
+                    <button disabled={!effectiveMeshName || postSmoothBusy} onClick={() => void handleRunPostSmooth()}>
+                      {postSmoothBusy ? t.postSmoothRunning : t.postSmoothRun}
+                    </button>
+                    {selectedSmoothOption ? (
+                      <button
+                        className="secondary"
+                        disabled={postSmoothBusy}
+                        onClick={() => setSelectedMeshName(selectedSmoothOption.name)}
+                      >
+                        {t.postSmoothResult}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
 
               {finalMeshData ? (
                 <FinalMeshViewer mesh={finalMeshData} />
@@ -1402,7 +2171,18 @@ export default function App() {
           </div>
 
           <div className="log-box">
-            <h3>{t.experimentConfig}</h3>
+            <div className="video-toolbar">
+              <h3>{t.experimentConfig}</h3>
+              <div className="button-row">
+                <button
+                  className="secondary"
+                  disabled={!activeDetail?.config}
+                  onClick={handleCreateFromConfig}
+                >
+                  {t.createFromConfig}
+                </button>
+              </div>
+            </div>
             <pre>{activeDetail ? JSON.stringify(activeDetail.config, null, 2) : t.noLog}</pre>
           </div>
 

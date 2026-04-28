@@ -371,6 +371,10 @@ button:disabled {
   font-size: 12px;
 }
 
+.post-smooth-panel {
+  margin-top: 12px;
+}
+
 .camera-strip {
   display: flex;
   gap: 8px;

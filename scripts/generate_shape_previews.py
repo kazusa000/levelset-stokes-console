@@ -22,6 +22,7 @@ OUT = ROOT / "levelset-console" / "frontend" / "public" / "shape-previews"
 SHAPES = {
     "3d": {
         "sphere": RODIN / "3dshapes" / "sphere_init_aligned.mesh",
+        "sphere_fine": RODIN / "3dshapes" / "sphere_fine_init.mesh",
         "sphere_bump": RODIN / "3dshapes" / "sphere_bump_init.mesh",
         "prolate": RODIN / "3dshapes" / "prolate_init.mesh",
         "oblate": RODIN / "3dshapes" / "oblate_init.mesh",

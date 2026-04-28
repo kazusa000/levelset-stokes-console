@@ -53,7 +53,17 @@ ALGORITHM_ALIASES: dict[str, str] = {
     "v1": "v1",
     "v2": "v2",
     "v3": "v3",
-    "v4_test": "v4_test",
+    "v4": "v4",
+    "v5": "v5",
+    "v6": "v6",
+    "v7": "v7",
+    "v8": "v8",
+    "v9": "v9",
+    "v10_test": "v10_test",
+    "v11_test": "v11_test",
+    "v4_test": "v4",
+    "v5_test": "v5",
+    "v8_test": "v8",
     "original": "v1",
     "ns": "v2",
     "test_3DNS_phi_smooth1": "v3",
@@ -75,10 +85,47 @@ TARGETS: dict[tuple[str, str], dict[str, Any]] = {
         "xdmf": "3Dv3.xdmf",
         "history": ["obj.txt", "vol.txt", "ns.txt"],
     },
-    ("3d", "v4_test"): {
+    ("3d", "v4"): {
         "target": "PETSc_3Dv4_test",
-        "xdmf": "3Dv4_test.xdmf",
+        "xdmf": "3Dv4.xdmf",
+        "xdmf_aliases": ["3Dv4_test.xdmf"],
         "history": ["obj.txt", "vol.txt", "ns.txt"],
+    },
+    ("3d", "v5"): {
+        "target": "PETSc_3Dv5_test",
+        "xdmf": "3Dv5.xdmf",
+        "xdmf_aliases": ["3Dv5_test.xdmf"],
+        "history": ["obj.txt", "vol.txt", "ns.txt", "centroid.txt"],
+    },
+    ("3d", "v6"): {
+        "target": "PETSc_3Dv6",
+        "xdmf": "3Dv6.xdmf",
+        "history": ["obj.txt", "vol.txt", "ns.txt", "centroid.txt"],
+    },
+    ("3d", "v7"): {
+        "target": "PETSc_3Dv7_test",
+        "xdmf": "3Dv7.xdmf",
+        "history": ["obj.txt", "vol.txt", "ns.txt", "centroid.txt"],
+    },
+    ("3d", "v8"): {
+        "target": "PETSc_3Dv8_test",
+        "xdmf": "3Dv8.xdmf",
+        "history": ["obj.txt", "vol.txt", "ns.txt", "centroid.txt"],
+    },
+    ("3d", "v9"): {
+        "target": "PETSc_3Dv9",
+        "xdmf": "3Dv9.xdmf",
+        "history": ["obj.txt", "vol.txt", "ns.txt", "centroid.txt"],
+    },
+    ("3d", "v10_test"): {
+        "target": "PETSc_3Dv10_test",
+        "xdmf": "3Dv10_test.xdmf",
+        "history": ["obj.txt", "obj_before.txt", "vol.txt", "ns.txt", "centroid.txt"],
+    },
+    ("3d", "v11_test"): {
+        "target": "PETSc_3Dv11_test",
+        "xdmf": "3Dv11_test.xdmf",
+        "history": ["obj.txt", "obj_before.txt", "vol.txt", "ns.txt", "centroid.txt"],
     },
 }
 
@@ -88,6 +135,12 @@ SHAPES: dict[str, list[dict[str, Any]]] = {
             "key": "sphere",
             "label": "Sphere",
             "mesh": str(RODIN_DIR / "examples/PETSc/LevelSetStokes/3dshapes/sphere_init_aligned.mesh"),
+            "experimental": False,
+        },
+        {
+            "key": "sphere_fine",
+            "label": "Sphere Fine",
+            "mesh": str(RODIN_DIR / "examples/PETSc/LevelSetStokes/3dshapes/sphere_fine_init.mesh"),
             "experimental": False,
         },
         {
@@ -226,7 +279,7 @@ DEFAULT_PRESETS = [
             "hmin_ratio": DEFAULT_HMIN_RATIO,
             "hausd_ratio": DEFAULT_HAUSD_RATIO,
             "convergence_window": 5,
-            "convergence_rtol_jraw": 5e-2,
+            "convergence_rtol_jraw": 5e-3,
             "ns_alpha_j": 0.5,
             "ns_alpha_c": 0.5,
             "final_refine": True,
@@ -246,10 +299,10 @@ DEFAULT_PRESETS = [
         },
     },
     {
-        "name": "3D-3Dv4_test-sphere",
+        "name": "3D-3Dv4-sphere",
         "config": {
             "dimension": "3d",
-            "algorithm": "v4_test",
+            "algorithm": "v4",
             "initial_shape": "sphere",
             "objective_mode": "K",
             "objective_sense": "min",
@@ -265,6 +318,243 @@ DEFAULT_PRESETS = [
             "ns_alpha_j": 0.5,
             "ns_alpha_c": 0.5,
             "surface_area_factor": 1.05,
+            "camera_preset": "isometric",
+            "fps": 5,
+            "width": 960,
+            "height": 540,
+            "color_by": "solid",
+            "show_edges": False,
+        },
+    },
+    {
+        "name": "3D-3Dv5-sphere",
+        "config": {
+            "dimension": "3d",
+            "algorithm": "v5",
+            "initial_shape": "sphere",
+            "objective_mode": "C",
+            "objective_sense": "min",
+            "i_axis": 0,
+            "j_axis": 0,
+            "max_iters": 20,
+            "step_k": 0.1,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
+            "convergence_window": 5,
+            "convergence_rtol_jraw": 5e-3,
+            "ns_alpha_j": 0.5,
+            "ns_alpha_c": 0.5,
+            "shift_x": 0.0,
+            "shift_y": 0.0,
+            "shift_z": 0.0,
+            "camera_preset": "isometric",
+            "fps": 5,
+            "width": 960,
+            "height": 540,
+            "color_by": "solid",
+            "show_edges": False,
+        },
+    },
+    {
+        "name": "3D-3Dv6-sphere",
+        "config": {
+            "dimension": "3d",
+            "algorithm": "v6",
+            "initial_shape": "sphere",
+            "objective_mode": "C",
+            "objective_sense": "min",
+            "i_axis": 0,
+            "j_axis": 0,
+            "max_iters": 20,
+            "step_k": 0.1,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
+            "convergence_window": 5,
+            "convergence_rtol_jraw": 5e-3,
+            "ns_alpha_j": 0.5,
+            "ns_alpha_c": 0.5,
+            "hilbert_alpha_factor": 16.0,
+            "surface_area_factor": 1.05,
+            "shift_x": 0.0,
+            "shift_y": 0.0,
+            "shift_z": 0.0,
+            "camera_preset": "isometric",
+            "fps": 5,
+            "width": 960,
+            "height": 540,
+            "color_by": "solid",
+            "show_edges": False,
+        },
+    },
+    {
+        "name": "3D-3Dv7-sphere",
+        "config": {
+            "dimension": "3d",
+            "algorithm": "v7",
+            "initial_shape": "sphere",
+            "objective_mode": "C",
+            "objective_sense": "min",
+            "i_axis": 0,
+            "j_axis": 0,
+            "max_iters": 20,
+            "step_k": 0.1,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
+            "convergence_window": 5,
+            "convergence_rtol_jraw": 5e-3,
+            "ns_alpha_j": 0.5,
+            "ns_alpha_c": 0.5,
+            "surface_area_factor": 1.05,
+            "shift_x": 0.0,
+            "shift_y": 0.0,
+            "shift_z": 0.0,
+            "final_refine": True,
+            "final_hmax_factor": 0.1,
+            "final_hmin_ratio": 0.1,
+            "final_hausd_ratio": 3.0,
+            "final_rmc": 1e-4,
+            "smooth_steps": 1,
+            "smooth_eps_factor": 0.1,
+            "smooth_iso_shift": 0.0,
+            "camera_preset": "isometric",
+            "fps": 5,
+            "width": 960,
+            "height": 540,
+            "color_by": "solid",
+            "show_edges": False,
+        },
+    },
+    {
+        "name": "3D-3Dv8-sphere",
+        "config": {
+            "dimension": "3d",
+            "algorithm": "v8",
+            "initial_shape": "sphere",
+            "objective_mode": "C",
+            "objective_sense": "min",
+            "i_axis": 0,
+            "j_axis": 0,
+            "max_iters": 20,
+            "step_k": 0.1,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
+            "convergence_window": 5,
+            "convergence_rtol_jraw": 5e-3,
+            "ns_alpha_j": 0.5,
+            "ns_alpha_c": 0.5,
+            "surface_area_factor": 1.05,
+            "shift_x": 0.0,
+            "shift_y": 0.0,
+            "shift_z": 0.0,
+            "final_refine": True,
+            "final_hmax_factor": 0.1,
+            "final_hmin_ratio": 0.1,
+            "final_hausd_ratio": 3.0,
+            "final_rmc": 1e-4,
+            "smooth_steps": 1,
+            "smooth_eps_factor": 1.0,
+            "smooth_iso_shift": 0.0,
+            "feature_smooth_kappa_factor": 1.0,
+            "feature_smooth_min_weight": 0.08,
+            "camera_preset": "isometric",
+            "fps": 5,
+            "width": 960,
+            "height": 540,
+            "color_by": "solid",
+            "show_edges": False,
+        },
+    },
+    {
+        "name": "3D-3Dv9-sphere",
+        "config": {
+            "dimension": "3d",
+            "algorithm": "v9",
+            "initial_shape": "sphere",
+            "objective_mode": "C",
+            "objective_sense": "min",
+            "i_axis": 0,
+            "j_axis": 0,
+            "max_iters": 20,
+            "step_k": 0.1,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
+            "convergence_window": 5,
+            "convergence_rtol_jraw": 5e-3,
+            "ns_alpha_j": 0.5,
+            "ns_alpha_c": 0.5,
+            "surface_area_factor": 1.05,
+            "area_correction_gain": 0.1,
+            "area_gram_rel_tol": 1e-3,
+            "shift_x": 0.0,
+            "shift_y": 0.0,
+            "shift_z": 0.0,
+            "camera_preset": "isometric",
+            "fps": 5,
+            "width": 960,
+            "height": 540,
+            "color_by": "solid",
+            "show_edges": False,
+        },
+    },
+    {
+        "name": "3D-3Dv10_test-sphere",
+        "config": {
+            "dimension": "3d",
+            "algorithm": "v10_test",
+            "initial_shape": "sphere",
+            "objective_mode": "C",
+            "objective_sense": "min",
+            "i_axis": 0,
+            "j_axis": 0,
+            "max_iters": 20,
+            "step_k": 0.1,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
+            "convergence_window": 5,
+            "convergence_rtol_jraw": 5e-3,
+            "ns_alpha_j": 0.5,
+            "ns_alpha_c": 0.5,
+            "surface_area_factor": 1.05,
+            "shift_x": 0.0,
+            "shift_y": 0.0,
+            "shift_z": 0.0,
+            "camera_preset": "isometric",
+            "fps": 5,
+            "width": 960,
+            "height": 540,
+            "color_by": "solid",
+            "show_edges": False,
+        },
+    },
+    {
+        "name": "3D-3Dv11_test-sphere",
+        "config": {
+            "dimension": "3d",
+            "algorithm": "v11_test",
+            "initial_shape": "sphere",
+            "objective_mode": "C",
+            "objective_sense": "min",
+            "i_axis": 0,
+            "j_axis": 0,
+            "max_iters": 20,
+            "step_k": 0.1,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
+            "convergence_window": 5,
+            "convergence_rtol_jraw": 5e-2,
+            "ns_alpha_j": 0.5,
+            "ns_alpha_c": 0.5,
+            "surface_area_factor": 1.05,
+            "shift_x": 0.0,
+            "shift_y": 0.0,
+            "shift_z": 0.0,
             "camera_preset": "isometric",
             "fps": 5,
             "width": 960,
@@ -306,7 +596,7 @@ DIAGNOSTICS = [
 
 class JobConfig(BaseModel):
     dimension: Literal["3d"]
-    algorithm: Literal["v1", "v2", "v3", "v4_test"]
+    algorithm: Literal["v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"]
     initial_shape: str
     objective_mode: Literal["K", "C", "Q"] = "K"
     objective_sense: Literal["min", "max"] = "min"
@@ -322,15 +612,23 @@ class JobConfig(BaseModel):
     convergence_rtol_jraw: float = Field(default=5e-3, gt=0)
     ns_alpha_j: float = Field(default=0.5, gt=0)
     ns_alpha_c: float = Field(default=0.5, gt=0)
+    hilbert_alpha_factor: float = Field(default=16.0, gt=0)
     surface_area_factor: float = Field(default=1.05, gt=0)
+    area_correction_gain: float = Field(default=0.1, ge=0)
+    area_gram_rel_tol: float = Field(default=1e-3, ge=0)
+    shift_x: float = 0.0
+    shift_y: float = 0.0
+    shift_z: float = 0.0
     final_refine: bool = True
-    final_hmax_factor: float = Field(default=1.0, gt=0)
+    final_hmax_factor: float = Field(default=0.1, gt=0)
     final_hmin_ratio: float = Field(default=0.1, gt=0)
     final_hausd_ratio: float = Field(default=3.0, gt=0)
     final_rmc: float = Field(default=1e-4, gt=0)
     smooth_steps: int = Field(default=1, ge=1, le=50)
-    smooth_eps_factor: float = Field(default=0.05, gt=0)
+    smooth_eps_factor: float = Field(default=1.0, gt=0)
     smooth_iso_shift: float = 0.0
+    feature_smooth_kappa_factor: float = Field(default=1.0, gt=0)
+    feature_smooth_min_weight: float = Field(default=0.08, ge=0, le=1)
     penalty: float | None = None
     camera_preset: Literal["default", "front", "side", "top", "isometric"] = "default"
     fps: int = Field(default=5, ge=1, le=60)
@@ -354,8 +652,52 @@ class FavoriteRequest(BaseModel):
     favorite: bool
 
 
+class PostSmoothRequest(BaseModel):
+    mesh_name: str | None = None
+    final_hmax_factor: float = Field(default=0.1, gt=0)
+    final_hmin_ratio: float = Field(default=0.1, gt=0)
+    final_hausd_ratio: float = Field(default=3.0, gt=0)
+    final_rmc: float = Field(default=1e-4, gt=0)
+    smooth_steps: int = Field(default=1, ge=1, le=50)
+    smooth_eps_factor: float = Field(default=1.0, gt=0)
+    smooth_iso_shift: float = 0.0
+    smooth_mode: Literal["global", "feature"] = "global"
+    feature_smooth_kappa_factor: float = Field(default=0.1, gt=0)
+    feature_smooth_min_weight: float = Field(default=0.08, ge=0, le=1)
+
+
+def model_fields_set(model: BaseModel) -> set[str]:
+    fields_set = getattr(model, "model_fields_set", None)
+    if fields_set is None:
+        fields_set = getattr(model, "__fields_set__", set())
+    return set(fields_set)
+
+
+def effective_smooth_eps_factor(config: JobConfig) -> float:
+    if config.algorithm == "v7" and "smooth_eps_factor" not in model_fields_set(config):
+        return 0.1
+    return config.smooth_eps_factor
+
+
 def now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
+
+def parse_iso_datetime(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def compute_duration_seconds(meta: dict[str, Any]) -> int | None:
+    started = parse_iso_datetime(meta.get("started_at")) or parse_iso_datetime(meta.get("created_at"))
+    if started is None:
+        return None
+    finished = parse_iso_datetime(meta.get("finished_at")) or datetime.now()
+    return max(0, int((finished - started).total_seconds()))
 
 
 def read_json(path: Path, fallback: Any) -> Any:
@@ -407,18 +749,27 @@ def resolve_target(config: JobConfig) -> dict[str, Any]:
     return info
 
 
+def find_xdmf_path(experiment_dir: Path, target_info: dict[str, Any]) -> Path | None:
+    names = [target_info["xdmf"], *target_info.get("xdmf_aliases", [])]
+    for name in names:
+        candidate = experiment_dir / "out" / name
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def supports_objective_mode(config: JobConfig) -> bool:
     if config.objective_mode == "K":
         return True
     if config.objective_mode == "C":
-        return config.algorithm in {"v1", "v2", "v3", "v4_test"}
+        return config.algorithm in {"v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}
     if config.objective_mode == "Q":
-        return config.algorithm in {"v1", "v2", "v3", "v4_test"}
+        return config.algorithm in {"v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}
     return False
 
 
 def supports_objective_sense(config: JobConfig) -> bool:
-    return config.algorithm in {"v1", "v2", "v3", "v4_test"}
+    return config.algorithm in {"v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}
 
 
 def build_env(config: JobConfig, mesh_path: str) -> dict[str, str]:
@@ -433,25 +784,61 @@ def build_env(config: JobConfig, mesh_path: str) -> dict[str, str]:
     env["HMAX"] = str(config.hmax)
     env["HMIN_RATIO"] = str(config.hmin_ratio)
     env["HAUSD_RATIO"] = str(config.hausd_ratio)
-    if config.algorithm in {"v2", "v3", "v4_test"}:
+    if config.algorithm in {"v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
         env["CONVERGENCE_WINDOW"] = str(config.convergence_window)
         env["CONVERGENCE_RTOL_JRAW"] = str(config.convergence_rtol_jraw)
-    if config.algorithm in {"v2", "v3", "v4_test"}:
+    if config.algorithm in {"v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
         env["NS_ALPHA_J"] = str(config.ns_alpha_j)
         env["NS_ALPHA_C"] = str(config.ns_alpha_c)
-    if config.algorithm == "v4_test":
+    if config.algorithm == "v6":
+        env["HILBERT_ALPHA_FACTOR"] = str(config.hilbert_alpha_factor)
+    if config.algorithm in {"v4", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
         env["SURFACE_AREA_FACTOR"] = str(config.surface_area_factor)
-    if config.algorithm == "v3":
+    if config.algorithm == "v9":
+        env["AREA_CORRECTION_GAIN"] = str(config.area_correction_gain)
+        env["AREA_GRAM_REL_TOL"] = str(config.area_gram_rel_tol)
+    if config.algorithm in {"v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
+        env["SHIFT_X"] = str(config.shift_x)
+        env["SHIFT_Y"] = str(config.shift_y)
+        env["SHIFT_Z"] = str(config.shift_z)
+    if config.algorithm in {"v3", "v4", "v5", "v7", "v8"}:
         env["FINAL_REFINE"] = "1" if config.final_refine else "0"
         env["FINAL_HMAX_FACTOR"] = str(config.final_hmax_factor)
         env["FINAL_HMIN_RATIO"] = str(config.final_hmin_ratio)
         env["FINAL_HAUSD_RATIO"] = str(config.final_hausd_ratio)
         env["FINAL_RMC"] = str(config.final_rmc)
         env["SMOOTH_STEPS"] = str(config.smooth_steps)
-        env["SMOOTH_EPS_FACTOR"] = str(config.smooth_eps_factor)
+        env["SMOOTH_EPS_FACTOR"] = str(effective_smooth_eps_factor(config))
         env["SMOOTH_ISO_SHIFT"] = str(config.smooth_iso_shift)
+    if config.algorithm == "v8":
+        env["FEATURE_SMOOTH_KAPPA_FACTOR"] = str(config.feature_smooth_kappa_factor)
+        env["FEATURE_SMOOTH_MIN_WEIGHT"] = str(config.feature_smooth_min_weight)
     if config.algorithm == "v1" and config.penalty is not None:
         env["AL_PENALTY"] = str(config.penalty)
+    return env
+
+
+def build_postsmooth_env(
+    config: dict[str, Any],
+    request: PostSmoothRequest,
+    mesh_path: str,
+    output_mesh_path: Path | None = None,
+) -> dict[str, str]:
+    env = os.environ.copy()
+    env["MESH"] = mesh_path
+    if output_mesh_path:
+        env["OUTPUT_MESH"] = str(output_mesh_path)
+    env["HMAX"] = str(config.get("hmax", DEFAULT_HMAX))
+    env["FINAL_HMAX_FACTOR"] = str(request.final_hmax_factor)
+    env["FINAL_HMIN_RATIO"] = str(request.final_hmin_ratio)
+    env["FINAL_HAUSD_RATIO"] = str(request.final_hausd_ratio)
+    env["FINAL_RMC"] = str(request.final_rmc)
+    env["SMOOTH_STEPS"] = str(request.smooth_steps)
+    env["SMOOTH_EPS_FACTOR"] = str(request.smooth_eps_factor)
+    env["SMOOTH_ISO_SHIFT"] = str(request.smooth_iso_shift)
+    env["SMOOTH_MODE"] = request.smooth_mode
+    env["FEATURE_SMOOTH_KAPPA_FACTOR"] = str(request.feature_smooth_kappa_factor)
+    env["FEATURE_SMOOTH_MIN_WEIGHT"] = str(request.feature_smooth_min_weight)
     return env
 
 
@@ -463,7 +850,6 @@ def used_config_payload(config: JobConfig, resolved_mesh_path: str, initial_shap
         "initial_shape_label": initial_shape_label,
         "objective_mode": config.objective_mode,
         "objective_sense": config.objective_sense,
-        "mesh_path": resolved_mesh_path,
         "i_axis": config.i_axis,
         "j_axis": config.j_axis,
         "max_iters": config.max_iters,
@@ -479,26 +865,45 @@ def used_config_payload(config: JobConfig, resolved_mesh_path: str, initial_shap
         "show_edges": config.show_edges,
     }
 
-    if config.algorithm in {"v2", "v3", "v4_test"}:
+    if config.mesh_path and config.initial_shape == "custom":
+        payload["mesh_path"] = resolved_mesh_path
+
+    if config.algorithm in {"v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
         payload["convergence_window"] = config.convergence_window
         payload["convergence_rtol_jraw"] = config.convergence_rtol_jraw
 
-    if config.algorithm in {"v2", "v3", "v4_test"}:
+    if config.algorithm in {"v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
         payload["ns_alpha_j"] = config.ns_alpha_j
         payload["ns_alpha_c"] = config.ns_alpha_c
 
-    if config.algorithm == "v4_test":
+    if config.algorithm == "v6":
+        payload["hilbert_alpha_factor"] = config.hilbert_alpha_factor
+
+    if config.algorithm in {"v4", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
         payload["surface_area_factor"] = config.surface_area_factor
 
-    if config.algorithm == "v3":
+    if config.algorithm == "v9":
+        payload["area_correction_gain"] = config.area_correction_gain
+        payload["area_gram_rel_tol"] = config.area_gram_rel_tol
+
+    if config.algorithm in {"v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
+        payload["shift_x"] = config.shift_x
+        payload["shift_y"] = config.shift_y
+        payload["shift_z"] = config.shift_z
+
+    if config.algorithm in {"v3", "v4", "v5", "v7", "v8"}:
         payload["final_refine"] = config.final_refine
         payload["final_hmax_factor"] = config.final_hmax_factor
         payload["final_hmin_ratio"] = config.final_hmin_ratio
         payload["final_hausd_ratio"] = config.final_hausd_ratio
         payload["final_rmc"] = config.final_rmc
         payload["smooth_steps"] = config.smooth_steps
-        payload["smooth_eps_factor"] = config.smooth_eps_factor
+        payload["smooth_eps_factor"] = effective_smooth_eps_factor(config)
         payload["smooth_iso_shift"] = config.smooth_iso_shift
+
+    if config.algorithm == "v8":
+        payload["feature_smooth_kappa_factor"] = config.feature_smooth_kappa_factor
+        payload["feature_smooth_min_weight"] = config.feature_smooth_min_weight
 
     if config.algorithm == "v1" and config.penalty is not None:
         payload["penalty"] = config.penalty
@@ -530,21 +935,25 @@ def parse_series_file(path: Path, default_columns: list[str]) -> dict[str, Any]:
 def series_layout(config: dict[str, Any], history_name: str) -> list[str]:
     algorithm = ALGORITHM_ALIASES.get(str(config.get("algorithm", "v1")), str(config.get("algorithm", "v1")))
     if history_name == "obj.txt":
-        if algorithm in {"v2", "v3", "v4_test"}:
+        if algorithm in {"v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
             return ["iter", "objective"]
         return ["iter", "objective", "objective_aug"]
     if history_name == "obj_raw.txt":
         return ["iter", "objective_raw"]
+    if history_name == "obj_before.txt":
+        return ["iter", "objective_raw", "objective"]
     if history_name == "vol.txt":
-        if algorithm == "v4_test":
+        if algorithm in {"v4", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
             return ["iter", "volume", "violation", "area", "area_violation", "area_active"]
         return ["iter", "volume", "violation"]
     if history_name == "al.txt":
         return ["lambda", "penalty"]
     if history_name == "ns.txt":
-        if algorithm == "v4_test":
+        if algorithm in {"v4", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
             return ["iter", "alpha_j", "alpha_c", "area_active", "proj_v", "proj_a", "range_v", "range_a", "max_xi_j", "max_xi_c"]
         return ["iter", "alpha_j", "alpha_c", "proj_coeff", "range_coeff", "max_xi_j", "max_xi_c"]
+    if history_name == "centroid.txt":
+        return ["iter", "centroid_x", "centroid_y", "centroid_z"]
     return ["c0", "c1"]
 
 
@@ -589,6 +998,77 @@ def experiment_artifact_url(experiment_id: str, relative_path: str | None) -> st
 
 
 OMEGA_ITERATION_RE = re.compile(r"Omega\.(\d+)\.mesh$")
+OMEGA_POSTSMOOTH_ITERATION_RE = re.compile(r"Omega\.(\d+)\.postsmooth\.mesh$")
+
+
+def postsmooth_mesh_name(mesh_name: str) -> str:
+    if mesh_name == "Omega.final.mesh":
+        return "Omega.final.postsmooth.mesh"
+    match = OMEGA_ITERATION_RE.fullmatch(mesh_name)
+    if match:
+        return f"Omega.{match.group(1)}.postsmooth.mesh"
+    stem = mesh_name[:-5] if mesh_name.endswith(".mesh") else mesh_name
+    return f"{stem}.postsmooth.mesh"
+
+
+def mesh_sort_key(name: str) -> tuple[int, int, str]:
+    match = OMEGA_ITERATION_RE.fullmatch(name)
+    if match:
+        return (0, int(match.group(1)), name)
+    match = OMEGA_POSTSMOOTH_ITERATION_RE.fullmatch(name)
+    if match:
+        return (1, int(match.group(1)), name)
+    if name == "Omega.final.mesh":
+        return (2, 0, name)
+    if name in {"Omega.final.postsmooth.mesh", "Omega.postsmooth.mesh"}:
+        return (3, 0, name)
+    return (4, 0, name)
+
+
+def resolve_experiment_mesh_path(experiment_dir: Path, mesh_name: str) -> Path:
+    if "/" in mesh_name or "\\" in mesh_name or mesh_name in {"", ".", ".."}:
+        raise HTTPException(status_code=400, detail="Invalid mesh name.")
+    if not mesh_name.startswith("Omega.") or not mesh_name.endswith(".mesh"):
+        raise HTTPException(status_code=400, detail="Invalid mesh name.")
+    path = (experiment_dir / "out" / mesh_name).resolve()
+    out_dir = (experiment_dir / "out").resolve()
+    if path.parent != out_dir:
+        raise HTTPException(status_code=400, detail="Invalid mesh name.")
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Mesh not found.")
+    return path
+
+
+def list_mesh_options(experiment_dir: Path) -> list[dict[str, Any]]:
+    out_dir = experiment_dir / "out"
+    if not out_dir.exists():
+        return []
+
+    names = {
+        path.name
+        for path in out_dir.glob("Omega*.mesh")
+        if path.is_file() and path.name.startswith("Omega.") and path.name.endswith(".mesh")
+    }
+    if not names:
+        return []
+
+    default_path = find_final_mesh_path(experiment_dir)
+    default_name = default_path.name if default_path else sorted(names, key=mesh_sort_key)[-1]
+    options: list[dict[str, Any]] = []
+    for name in sorted(names, key=mesh_sort_key):
+        smooth_name = postsmooth_mesh_name(name)
+        is_smooth = name.endswith(".postsmooth.mesh") or name == "Omega.postsmooth.mesh"
+        options.append(
+            {
+                "name": name,
+                "label": name,
+                "is_default": name == default_name,
+                "is_smooth": is_smooth,
+                "smooth_name": smooth_name,
+                "has_smooth": smooth_name in names,
+            }
+        )
+    return options
 
 
 def find_final_mesh_path(experiment_dir: Path) -> Path | None:
@@ -607,6 +1087,14 @@ def find_final_mesh_path(experiment_dir: Path) -> Path | None:
         return None
     numbered.sort(key=lambda item: item[0])
     return numbered[-1][1]
+
+
+def find_postsmooth_mesh_path(experiment_dir: Path) -> Path | None:
+    final_postsmooth = experiment_dir / "out" / "Omega.final.postsmooth.mesh"
+    if final_postsmooth.exists():
+        return final_postsmooth
+    path = experiment_dir / "out" / "Omega.postsmooth.mesh"
+    return path if path.exists() else None
 
 
 def parse_medit_surface_polydata(mesh_path: Path, preferred_refs: set[int] | None = None) -> dict[str, Any]:
@@ -744,6 +1232,7 @@ def read_experiment(experiment_dir: Path) -> dict[str, Any]:
     }
     log_text = tail_lines(experiment_dir / "run.log")
     summary = extract_runtime_summary(log_text, series)
+    summary["duration_seconds"] = compute_duration_seconds(meta)
 
     previews = {}
     out_dir = experiment_dir / "out"
@@ -760,9 +1249,14 @@ def read_experiment(experiment_dir: Path) -> dict[str, Any]:
         finals["default"] = experiment_artifact_url(experiment_dir.name, "out/obstacle.mp4")
 
     final_mesh_path = find_final_mesh_path(experiment_dir)
+    postsmooth_mesh_path = find_postsmooth_mesh_path(experiment_dir)
+    mesh_options = list_mesh_options(experiment_dir)
+    postsmooth_config = read_json(experiment_dir / "postsmooth-config.json", None)
+    xdmf_path = find_xdmf_path(experiment_dir, target_info) if target_info else None
     return {
         "id": experiment_dir.name,
         "config": config,
+        "postsmooth_config": postsmooth_config,
         "meta": meta,
         "summary": summary,
         "series": series,
@@ -770,8 +1264,12 @@ def read_experiment(experiment_dir: Path) -> dict[str, Any]:
         "diagnostics": extract_diagnostics(log_text),
         "preview_urls": previews,
         "final_urls": finals,
-        "xdmf_url": experiment_artifact_url(experiment_dir.name, f"out/{target_info['xdmf']}") if target_info else None,
+        "xdmf_url": experiment_artifact_url(experiment_dir.name, f"out/{xdmf_path.name}") if xdmf_path else None,
+        "mesh_options": mesh_options,
         "final_mesh_url": f"/api/experiments/{experiment_dir.name}/final-mesh" if final_mesh_path else None,
+        "postsmooth_mesh_url": (
+            f"/api/experiments/{experiment_dir.name}/postsmooth-mesh" if postsmooth_mesh_path else None
+        ),
     }
 
 
@@ -930,8 +1428,8 @@ class JobManager:
             return {"status": "stopped", "id": experiment_id}
 
     def _render_animation(self, experiment_dir: Path, config: dict[str, Any], target_info: dict[str, Any], camera: str, preview: bool) -> None:
-        xdmf_path = experiment_dir / "out" / target_info["xdmf"]
-        if not xdmf_path.exists():
+        xdmf_path = find_xdmf_path(experiment_dir, target_info)
+        if not xdmf_path:
             return
         output_name = f"{'preview' if preview else 'final'}-{camera}.mp4"
         output_path = experiment_dir / "out" / output_name
@@ -943,8 +1441,8 @@ class JobManager:
         )
 
     def _maybe_start_preview(self, job: RunningJob, iteration: int | None) -> None:
-        xdmf_path = job.experiment_dir / "out" / job.target_info["xdmf"]
-        if not xdmf_path.exists():
+        xdmf_path = find_xdmf_path(job.experiment_dir, job.target_info)
+        if not xdmf_path:
             return
         if iteration is None:
             return
@@ -1056,12 +1554,12 @@ def api_start_job(config: JobConfig) -> dict[str, Any]:
     if not supports_objective_mode(config):
         raise HTTPException(
             status_code=400,
-            detail="当前组合暂不支持该目标模式。现阶段 C/Q 仅支持 v1、v2、v3、v4_test。",
+            detail="当前组合暂不支持该目标模式。现阶段 C/Q 仅支持 v1、v2、v3、v4、v5、v6、v7、v8、v9、v10_test、v11_test。",
         )
     if config.objective_sense == "max" and not supports_objective_sense(config):
         raise HTTPException(
             status_code=400,
-            detail="当前组合暂不支持 max 模式。现阶段 min/max 仅支持 v1、v2、v3、v4_test。",
+            detail="当前组合暂不支持 max 模式。现阶段 min/max 仅支持 v1、v2、v3、v4、v5、v6、v7、v8、v9、v10_test、v11_test。",
         )
     return manager.start(config)
 
@@ -1108,6 +1606,78 @@ def api_experiment_final_mesh(experiment_id: str) -> dict[str, Any]:
         return parse_medit_surface_polydata(mesh_path)
     except ValueError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/experiments/{experiment_id}/mesh")
+def api_experiment_mesh(experiment_id: str, name: str) -> dict[str, Any]:
+    path = EXPERIMENTS_DIR / experiment_id
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Experiment not found.")
+    mesh_path = resolve_experiment_mesh_path(path, name)
+    try:
+        return parse_medit_surface_polydata(mesh_path)
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/experiments/{experiment_id}/postsmooth-mesh")
+def api_experiment_postsmooth_mesh(experiment_id: str) -> dict[str, Any]:
+    path = EXPERIMENTS_DIR / experiment_id
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Experiment not found.")
+    mesh_path = find_postsmooth_mesh_path(path)
+    if not mesh_path:
+        raise HTTPException(status_code=404, detail="Post-smoothed mesh not found.")
+    try:
+        return parse_medit_surface_polydata(mesh_path)
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/experiments/{experiment_id}/post-smooth")
+def api_experiment_post_smooth(experiment_id: str, request: PostSmoothRequest) -> dict[str, Any]:
+    path = EXPERIMENTS_DIR / experiment_id
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Experiment not found.")
+    if manager.is_running(experiment_id):
+        raise HTTPException(status_code=409, detail="Cannot run post-smooth while the experiment is running.")
+
+    experiment = read_experiment(path)
+    config = experiment["config"]
+    if request.mesh_name:
+        mesh_path = resolve_experiment_mesh_path(path, request.mesh_name)
+    else:
+        mesh_path = find_final_mesh_path(path)
+        if not mesh_path:
+            raise HTTPException(status_code=404, detail="Final mesh not found.")
+
+    output_name = postsmooth_mesh_name(mesh_path.name)
+    output_path = path / "out" / output_name
+
+    build_target("PETSc_3DPostSmooth")
+    request_payload = request.model_dump()
+    request_payload["mesh_name"] = mesh_path.name
+    request_payload["output_mesh_name"] = output_name
+    write_json(path / "postsmooth-config.json", request_payload)
+    write_json(path / f"postsmooth-config-{output_name.removesuffix('.mesh')}.json", request_payload)
+
+    log_path = path / f"postsmooth-{output_name.removesuffix('.mesh')}.log"
+    executable = BUILD_DIR / "examples/PETSc/LevelSetStokes" / "PETSc_3DPostSmooth"
+    result = subprocess.run(
+        [str(executable)],
+        cwd=path,
+        env=build_postsmooth_env(config, request, str(mesh_path), output_path),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    log_path.write_text(result.stdout or "", encoding="utf-8")
+
+    if result.returncode != 0 or not output_path.exists():
+        detail = tail_lines(log_path, 80) or "Post-smooth failed."
+        raise HTTPException(status_code=500, detail=detail)
+
+    return read_experiment(path)
 
 
 @app.delete("/api/experiments/{experiment_id}")
