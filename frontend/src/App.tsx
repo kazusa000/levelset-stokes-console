@@ -822,10 +822,7 @@ export default function App() {
   }, [selectedExperimentId, runningExperiments, runningIds, experimentsData, viewMode]);
 
   const activeDetail = activeRunning ?? detailData ?? null;
-  const objectiveSeries =
-    (activeDetail?.config.algorithm === "v10_test" || activeDetail?.config.algorithm === "v11_test")
-      ? activeDetail?.series?.["obj_before.txt"] ?? activeDetail?.series?.["obj.txt"]
-      : activeDetail?.series?.["obj.txt"];
+  const objectiveSeries = activeDetail?.series?.["obj.txt"];
   const volumeSeries = activeDetail?.series?.["vol.txt"];
   const activeCameraUrl =
     activeDetail?.preview_urls?.[form.camera_preset] ?? activeDetail?.final_urls?.[form.camera_preset] ?? null;
@@ -1892,7 +1889,11 @@ export default function App() {
                   <h3>{t.finalMeshViewer}</h3>
                   <p className="toolbar-subtitle">
                     {finalMeshData
-                      ? `${finalMeshData.point_count} pts · ${finalMeshData.triangle_count} tris`
+                      ? `${finalMeshData.point_count} pts · ${finalMeshData.triangle_count} tris${
+                          finalMeshData.velocity?.count
+                            ? ` · ${finalMeshData.velocity.count} u arrows · step ${finalMeshData.velocity.timestep ?? "latest"}`
+                            : ""
+                        }`
                       : t.finalMeshPending}
                   </p>
                   {finalMeshData ? (

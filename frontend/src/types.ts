@@ -101,6 +101,24 @@ export type MeshOption = {
   has_smooth?: boolean;
 };
 
+export type MeshPolyData = {
+  triangle_count: number;
+  point_count: number;
+  selection_mode?: string;
+  points: number[];
+  polys: number[];
+  bounds?: number[];
+};
+
+export type VelocitySampleData = {
+  timestep?: number | null;
+  count: number;
+  min_magnitude: number;
+  max_magnitude: number;
+  positions: number[];
+  vectors: number[];
+};
+
 export type FinalMeshData = {
   source: string;
   triangle_count: number;
@@ -109,4 +127,7 @@ export type FinalMeshData = {
   used_reference_filter: boolean;
   points: number[];
   polys: number[];
+  obstacle?: MeshPolyData;
+  domain?: MeshPolyData;
+  velocity?: VelocitySampleData;
 };

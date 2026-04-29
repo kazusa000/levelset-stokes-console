@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import signal
@@ -8,6 +9,7 @@ import shutil
 import subprocess
 import threading
 import time
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -1097,8 +1099,7 @@ def find_postsmooth_mesh_path(experiment_dir: Path) -> Path | None:
     return path if path.exists() else None
 
 
-def parse_medit_surface_polydata(mesh_path: Path, preferred_refs: set[int] | None = None) -> dict[str, Any]:
-    preferred = preferred_refs or {13}
+def parse_medit_mesh(mesh_path: Path) -> tuple[list[tuple[float, float, float]], list[tuple[int, int, int, int]], list[tuple[int, int, int, int, int]]]:
     lines = [
         line.strip()
         for line in mesh_path.read_text(errors="replace").splitlines()
@@ -1147,51 +1148,42 @@ def parse_medit_surface_polydata(mesh_path: Path, preferred_refs: set[int] | Non
         raise ValueError(f"No vertices found in {mesh_path.name}")
     if not triangles and not tetrahedra:
         raise ValueError(f"No triangles found in {mesh_path.name}")
+    return vertices, triangles, tetrahedra
 
-    selected_faces: list[tuple[int, int, int]]
-    selection_mode = "triangle-ref"
 
-    # Prefer the true obstacle-fluid interface when tetrahedra are available.
-    if tetrahedra:
-        face_refs: dict[tuple[int, int, int], set[int]] = {}
-        for a, b, c, d, ref in tetrahedra:
-            for face in ((a, b, c), (a, b, d), (a, c, d), (b, c, d)):
-                key = tuple(sorted(face))
-                refs = face_refs.setdefault(key, set())
-                refs.add(ref)
+def tetra_face_refs(tetrahedra: list[tuple[int, int, int, int, int]]) -> dict[tuple[int, int, int], set[int]]:
+    face_refs: dict[tuple[int, int, int], set[int]] = {}
+    for a, b, c, d, ref in tetrahedra:
+        for face in ((a, b, c), (a, b, d), (a, c, d), (b, c, d)):
+            key = tuple(sorted(face))
+            refs = face_refs.setdefault(key, set())
+            refs.add(ref)
+    return face_refs
 
-        interface_faces = [
-            face
-            for face, refs in face_refs.items()
-            if PHASE_OBSTACLE in refs and PHASE_FLUID in refs
-        ]
-        if interface_faces:
-            selected_faces = interface_faces
-            selection_mode = "tet-interface"
-        else:
-            selected = [tri for tri in triangles if tri[3] in preferred]
-            if selected:
-                selected_faces = [(a, b, c) for a, b, c, _ref in selected]
-            else:
-                selected_faces = [(a, b, c) for a, b, c, _ref in triangles]
-                selection_mode = "triangle-all"
-    else:
-        selected = [tri for tri in triangles if tri[3] in preferred]
-        if selected:
-            selected_faces = [(a, b, c) for a, b, c, _ref in selected]
-        else:
-            selected_faces = [(a, b, c) for a, b, c, _ref in triangles]
-            selection_mode = "triangle-all"
 
+def tetra_face_counts(tetrahedra: list[tuple[int, int, int, int, int]]) -> dict[tuple[int, int, int], int]:
+    counts: dict[tuple[int, int, int], int] = {}
+    for a, b, c, d, _ref in tetrahedra:
+        for face in ((a, b, c), (a, b, d), (a, c, d), (b, c, d)):
+            key = tuple(sorted(face))
+            counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def surface_polydata(
+    vertices: list[tuple[float, float, float]],
+    faces: list[tuple[int, int, int]],
+    selection_mode: str,
+) -> dict[str, Any]:
     index_map: dict[int, int] = {}
     points: list[float] = []
     polys: list[int] = []
 
-    for a, b, c in selected_faces:
+    for a, b, c in faces:
         local = []
         for old_index in (a, b, c):
             if old_index < 1 or old_index > len(vertices):
-                raise ValueError(f"Triangle index out of range in {mesh_path.name}: {old_index}")
+                raise ValueError(f"Triangle index out of range: {old_index}")
             if old_index not in index_map:
                 index_map[old_index] = len(index_map)
                 x, y, z = vertices[old_index - 1]
@@ -1199,15 +1191,237 @@ def parse_medit_surface_polydata(mesh_path: Path, preferred_refs: set[int] | Non
             local.append(index_map[old_index])
         polys.extend((3, local[0], local[1], local[2]))
 
+    if index_map:
+        used_vertices = [vertices[old_index - 1] for old_index in index_map]
+        xs = [point[0] for point in used_vertices]
+        ys = [point[1] for point in used_vertices]
+        zs = [point[2] for point in used_vertices]
+        bounds = [min(xs), max(xs), min(ys), max(ys), min(zs), max(zs)]
+    else:
+        bounds = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
     return {
-        "source": mesh_path.name,
-        "triangle_count": len(selected_faces),
+        "triangle_count": len(faces),
         "point_count": len(index_map),
         "selection_mode": selection_mode,
-        "used_reference_filter": selection_mode == "triangle-ref",
         "points": points,
         "polys": polys,
+        "bounds": bounds,
     }
+
+
+def selected_obstacle_faces(
+    triangles: list[tuple[int, int, int, int]],
+    tetrahedra: list[tuple[int, int, int, int, int]],
+    preferred_refs: set[int],
+) -> tuple[list[tuple[int, int, int]], str]:
+    if tetrahedra:
+        face_refs = tetra_face_refs(tetrahedra)
+        interface_faces = [
+            face
+            for face, refs in face_refs.items()
+            if PHASE_OBSTACLE in refs and PHASE_FLUID in refs
+        ]
+        if interface_faces:
+            return interface_faces, "tet-interface"
+
+    selected = [tri for tri in triangles if tri[3] in preferred_refs]
+    if selected:
+        return [(a, b, c) for a, b, c, _ref in selected], "triangle-ref"
+    return [(a, b, c) for a, b, c, _ref in triangles], "triangle-all"
+
+
+def selected_domain_faces(
+    triangles: list[tuple[int, int, int, int]],
+    tetrahedra: list[tuple[int, int, int, int, int]],
+) -> tuple[list[tuple[int, int, int]], str]:
+    if tetrahedra:
+        exterior_faces = [face for face, count in tetra_face_counts(tetrahedra).items() if count == 1]
+        if exterior_faces:
+            return exterior_faces, "tet-exterior"
+    return [(a, b, c) for a, b, c, _ref in triangles], "triangle-all"
+
+
+def empty_velocity(timestep: int | None = None) -> dict[str, Any]:
+    return {
+        "timestep": timestep,
+        "count": 0,
+        "min_magnitude": 0.0,
+        "max_magnitude": 0.0,
+        "positions": [],
+        "vectors": [],
+    }
+
+
+def parse_medit_scene_polydata(
+    mesh_path: Path,
+    preferred_refs: set[int] | None = None,
+    velocity: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    preferred = preferred_refs or {13}
+    vertices, triangles, tetrahedra = parse_medit_mesh(mesh_path)
+    obstacle_faces, obstacle_mode = selected_obstacle_faces(triangles, tetrahedra, preferred)
+    domain_faces, domain_mode = selected_domain_faces(triangles, tetrahedra)
+    obstacle = surface_polydata(vertices, obstacle_faces, obstacle_mode)
+    domain = surface_polydata(vertices, domain_faces, domain_mode)
+    return {
+        "source": mesh_path.name,
+        "triangle_count": obstacle["triangle_count"],
+        "point_count": obstacle["point_count"],
+        "selection_mode": obstacle["selection_mode"],
+        "used_reference_filter": obstacle["selection_mode"] == "triangle-ref",
+        "points": obstacle["points"],
+        "polys": obstacle["polys"],
+        "obstacle": obstacle,
+        "domain": domain,
+        "velocity": velocity or empty_velocity(),
+    }
+
+
+def parse_medit_surface_polydata(mesh_path: Path, preferred_refs: set[int] | None = None) -> dict[str, Any]:
+    scene = parse_medit_scene_polydata(mesh_path, preferred_refs)
+    obstacle = scene["obstacle"]
+    return {
+        "source": mesh_path.name,
+        "triangle_count": obstacle["triangle_count"],
+        "point_count": obstacle["point_count"],
+        "selection_mode": obstacle["selection_mode"],
+        "used_reference_filter": obstacle["selection_mode"] == "triangle-ref",
+        "points": obstacle["points"],
+        "polys": obstacle["polys"],
+    }
+
+
+def mesh_timestep_index(mesh_name: str, latest_timestep: int | None) -> int | None:
+    match = OMEGA_ITERATION_RE.fullmatch(mesh_name)
+    if match:
+        return int(match.group(1))
+    if mesh_name in {"Omega.final.mesh", "Omega.final.postsmooth.mesh", "Omega.postsmooth.mesh"}:
+        return latest_timestep
+    smooth_match = OMEGA_POSTSMOOTH_ITERATION_RE.fullmatch(mesh_name)
+    if smooth_match:
+        return int(smooth_match.group(1))
+    return latest_timestep
+
+
+def xdmf_name(element: ET.Element) -> str:
+    return element.tag.rsplit("}", 1)[-1]
+
+
+def xdmf_children(element: ET.Element, name: str) -> list[ET.Element]:
+    return [child for child in list(element) if xdmf_name(child) == name]
+
+
+def xdmf_child(element: ET.Element, name: str) -> ET.Element | None:
+    for child in list(element):
+        if xdmf_name(child) == name:
+            return child
+    return None
+
+
+def xdmf_state_grids(xdmf_path: Path) -> list[ET.Element]:
+    root = ET.parse(xdmf_path).getroot()
+    for grid in root.iter():
+        if xdmf_name(grid) != "Grid":
+            continue
+        if grid.attrib.get("Name") == "state" and grid.attrib.get("GridType") == "Collection":
+            return [
+                child
+                for child in xdmf_children(grid, "Grid")
+                if child.attrib.get("GridType") == "Uniform"
+            ]
+    return []
+
+
+def xdmf_latest_timestep(xdmf_path: Path) -> int | None:
+    grids = xdmf_state_grids(xdmf_path)
+    return len(grids) - 1 if grids else None
+
+
+def xdmf_data_item_path(xdmf_path: Path, data_item: ET.Element | None) -> tuple[Path, str] | None:
+    if data_item is None or not data_item.text:
+        return None
+    text = data_item.text.strip()
+    if ":" not in text:
+        return None
+    file_name, dataset = text.split(":", 1)
+    return (xdmf_path.parent / file_name).resolve(), dataset
+
+
+def xdmf_attribute_data_item(grid: ET.Element, attribute_name: str) -> ET.Element | None:
+    for attribute in xdmf_children(grid, "Attribute"):
+        if attribute.attrib.get("Name") == attribute_name:
+            return xdmf_child(attribute, "DataItem")
+    return None
+
+
+def read_hdf_array(file_path: Path, dataset: str) -> Any:
+    import h5py
+
+    with h5py.File(file_path, "r") as handle:
+        return handle[dataset][()]
+
+
+def read_velocity_samples(xdmf_path: Path | None, timestep: int | None, max_samples: int = 420) -> dict[str, Any]:
+    if xdmf_path is None or timestep is None:
+        return empty_velocity(timestep)
+    try:
+        grids = xdmf_state_grids(xdmf_path)
+        if not grids:
+            return empty_velocity(timestep)
+        grid_index = max(0, min(timestep, len(grids) - 1))
+        grid = grids[grid_index]
+        geometry = xdmf_child(grid, "Geometry")
+        points_item = xdmf_child(geometry, "DataItem") if geometry is not None else None
+        vectors_item = xdmf_attribute_data_item(grid, "u")
+        points_ref = xdmf_data_item_path(xdmf_path, points_item)
+        vectors_ref = xdmf_data_item_path(xdmf_path, vectors_item)
+        if points_ref is None or vectors_ref is None:
+            return empty_velocity(grid_index)
+
+        points = read_hdf_array(*points_ref)
+        vectors = read_hdf_array(*vectors_ref)
+        count = min(len(points), len(vectors))
+        samples: list[tuple[float, tuple[float, float, float], tuple[float, float, float]]] = []
+        for i in range(count):
+            vx, vy, vz = float(vectors[i][0]), float(vectors[i][1]), float(vectors[i][2])
+            magnitude = math.sqrt(vx * vx + vy * vy + vz * vz)
+            if magnitude <= 1e-12:
+                continue
+            px, py, pz = float(points[i][0]), float(points[i][1]), float(points[i][2])
+            samples.append((magnitude, (px, py, pz), (vx, vy, vz)))
+
+        if not samples:
+            return empty_velocity(grid_index)
+
+        stride = max(1, math.ceil(len(samples) / max_samples))
+        selected = samples[::stride][:max_samples]
+        positions: list[float] = []
+        sampled_vectors: list[float] = []
+        magnitudes: list[float] = []
+        for magnitude, position, vector in selected:
+            magnitudes.append(magnitude)
+            positions.extend(position)
+            sampled_vectors.extend(vector)
+
+        return {
+            "timestep": grid_index,
+            "count": len(selected),
+            "min_magnitude": min(magnitudes),
+            "max_magnitude": max(magnitudes),
+            "positions": positions,
+            "vectors": sampled_vectors,
+        }
+    except Exception:
+        return empty_velocity(timestep)
+
+
+def parse_experiment_mesh_scene(experiment_dir: Path, mesh_path: Path, target_info: dict[str, Any] | None) -> dict[str, Any]:
+    xdmf_path = find_xdmf_path(experiment_dir, target_info) if target_info else None
+    latest = xdmf_latest_timestep(xdmf_path) if xdmf_path else None
+    timestep = mesh_timestep_index(mesh_path.name, latest)
+    velocity = read_velocity_samples(xdmf_path, timestep)
+    return parse_medit_scene_polydata(mesh_path, velocity=velocity)
 
 
 def list_user_presets() -> list[dict[str, Any]]:
@@ -1602,8 +1816,11 @@ def api_experiment_final_mesh(experiment_id: str) -> dict[str, Any]:
     mesh_path = find_final_mesh_path(path)
     if not mesh_path:
         raise HTTPException(status_code=404, detail="Final mesh not found.")
+    raw_config = read_json(path / "config.json", {})
+    config = normalize_config_dict(raw_config) if raw_config else {}
+    target_info = TARGETS.get((config.get("dimension"), config.get("algorithm")))
     try:
-        return parse_medit_surface_polydata(mesh_path)
+        return parse_experiment_mesh_scene(path, mesh_path, target_info)
     except ValueError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -1614,8 +1831,11 @@ def api_experiment_mesh(experiment_id: str, name: str) -> dict[str, Any]:
     if not path.exists():
         raise HTTPException(status_code=404, detail="Experiment not found.")
     mesh_path = resolve_experiment_mesh_path(path, name)
+    raw_config = read_json(path / "config.json", {})
+    config = normalize_config_dict(raw_config) if raw_config else {}
+    target_info = TARGETS.get((config.get("dimension"), config.get("algorithm")))
     try:
-        return parse_medit_surface_polydata(mesh_path)
+        return parse_experiment_mesh_scene(path, mesh_path, target_info)
     except ValueError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
