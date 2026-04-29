@@ -10,14 +10,17 @@ import {
   YAxis
 } from "recharts";
 import FinalMeshViewer from "./FinalMeshViewer";
+import { filterExperimentSummaries, type ExperimentFilterValue, type ExperimentFilters } from "./experimentFilters";
 import type { ExperimentDetail, ExperimentSummary, FinalMeshData, JobConfig, MeshOption, PostSmoothConfig } from "./types";
 
 type Locale = "zh" | "en";
-type ViewMode = "create" | "experiment";
+type BrowserTab = "favorites" | "history";
+type TopTab = "create" | BrowserTab;
+type ViewMode = TopTab | "experiment";
 
 const defaultConfig: JobConfig = {
   dimension: "3d",
-  algorithm: "v1",
+  algorithm: "v13",
   initial_shape: "sphere",
   objective_mode: "K",
   objective_sense: "min",
@@ -29,13 +32,26 @@ const defaultConfig: JobConfig = {
   hmin_ratio: 0.1,
   hausd_ratio: 0.1,
   convergence_window: 5,
-  convergence_rtol_jraw: 5e-3,
+  convergence_rtol_jraw: 5e-2,
   ns_alpha_j: 0.5,
   ns_alpha_c: 0.5,
-  hilbert_alpha_factor: 16.0,
   surface_area_factor: 1.05,
+  area_policy: "stable",
+  accept_policy: "objective",
   area_correction_gain: 0.1,
   area_gram_rel_tol: 1e-3,
+  adapt_size_map: true,
+  adapt_h_near_factor: 2.0,
+  adapt_h_far_factor: 1.0,
+  adapt_r_near_factor: 1.0,
+  adapt_r_far_factor: 0.5,
+  adapt_gradation: 1.3,
+  min_thickness: 0.08,
+  min_thickness_samples: 4,
+  min_thickness_active_tol: 0.0,
+  min_thickness_inactive_tol: 0.0,
+  min_thickness_correction_gain: 0.2,
+  min_thickness_dual_tol: 1e-10,
   shift_x: 0.0,
   shift_y: 0.0,
   shift_z: 0.0,
@@ -49,7 +65,6 @@ const defaultConfig: JobConfig = {
   smooth_iso_shift: 0.0,
   feature_smooth_kappa_factor: 1.0,
   feature_smooth_min_weight: 0.08,
-  penalty: 100,
   camera_preset: "isometric",
   fps: 5,
   width: 960,
@@ -74,7 +89,15 @@ const ui = {
     unfavorite: "取消收藏",
     favorites: "收藏夹",
     noFavorites: "当前没有收藏的实验。",
-    recentExperiments: "最近实验",
+    recentExperiments: "过往实验",
+    all: "全部",
+    searchExperiments: "搜索实验",
+    searchExperimentsPlaceholder: "实验 ID、算法、形状、阶段",
+    filterSense: "方向",
+    filterMode: "目标",
+    showResults: (shown: number, total: number) => `显示 ${shown} / ${total}`,
+    noExperiments: "没有符合筛选条件的实验。",
+    openExperiment: "打开",
     preset: "预设模板",
     choosePreset: "选择预设",
     dimension: "维度",
@@ -106,10 +129,27 @@ const ui = {
     convergenceRtolJraw: "Jraw 收敛阈值",
     nsAlphaJ: "NS alphaJ 系数",
     nsAlphaC: "NS alphaC 系数",
-    hilbertAlphaFactor: "Hilbert alpha 系数",
     surfaceAreaFactor: "面积上界倍率",
+    areaPolicy: "面积策略",
+    areaPolicyBasic: "basic",
+    areaPolicyStable: "stable",
+    acceptPolicy: "候选接受策略",
+    acceptPolicyMeshOnly: "mesh_only",
+    acceptPolicyObjective: "objective line search",
     areaCorrectionGain: "面积修正 gain",
     areaGramRelTol: "面积 Gram 相对阈值",
+    adaptSizeMap: "启用 Adapt size map",
+    adaptHNearFactor: "Adapt 近界面 h 系数",
+    adaptHFarFactor: "Adapt 远处 h 系数",
+    adaptRNearFactor: "Adapt 近场半径系数",
+    adaptRFarFactor: "Adapt 远场半径系数",
+    adaptGradation: "Adapt gradation",
+    minThickness: "最小厚度",
+    minThicknessSamples: "厚度采样数",
+    minThicknessActiveTol: "厚度 active 阈值",
+    minThicknessInactiveTol: "厚度 inactive 阈值",
+    minThicknessCorrectionGain: "厚度修正 gain",
+    minThicknessDualTol: "厚度 dual 阈值",
     shiftX: "整体平移 X",
     shiftY: "整体平移 Y",
     shiftZ: "整体平移 Z",
@@ -149,8 +189,12 @@ const ui = {
     noPreview: "还没有可用预览。运行几轮后或手动触发动画生成。",
     objectiveCurve: "Objective 曲线",
     volumeCurve: "Volume 曲线",
+    areaCurve: "表面积曲线",
+    thicknessCurve: "最小厚度曲线",
     noObjective: "暂无 objective 数据。",
     noVolume: "暂无 volume 数据。",
+    noArea: "暂无表面积数据。",
+    noThickness: "暂无最小厚度数据。",
     logsHistory: "日志与历史",
     latestLog: "最新日志",
     noLog: "暂无日志",
@@ -185,7 +229,15 @@ const ui = {
     unfavorite: "Unfavorite",
     favorites: "Favorites",
     noFavorites: "No favorited experiments.",
-    recentExperiments: "Recent experiments",
+    recentExperiments: "History",
+    all: "All",
+    searchExperiments: "Search experiments",
+    searchExperimentsPlaceholder: "Experiment ID, algorithm, shape, stage",
+    filterSense: "Sense",
+    filterMode: "Objective",
+    showResults: (shown: number, total: number) => `Showing ${shown} / ${total}`,
+    noExperiments: "No experiments match the filters.",
+    openExperiment: "Open",
     preset: "Preset",
     choosePreset: "Choose preset",
     dimension: "Dimension",
@@ -217,10 +269,27 @@ const ui = {
     convergenceRtolJraw: "Jraw convergence rtol",
     nsAlphaJ: "NS alphaJ factor",
     nsAlphaC: "NS alphaC factor",
-    hilbertAlphaFactor: "Hilbert alpha factor",
     surfaceAreaFactor: "Surface area factor",
+    areaPolicy: "Area policy",
+    areaPolicyBasic: "basic",
+    areaPolicyStable: "stable",
+    acceptPolicy: "Accept policy",
+    acceptPolicyMeshOnly: "mesh_only",
+    acceptPolicyObjective: "objective line search",
     areaCorrectionGain: "Area correction gain",
     areaGramRelTol: "Area Gram relative tolerance",
+    adaptSizeMap: "Enable Adapt size map",
+    adaptHNearFactor: "Adapt near h factor",
+    adaptHFarFactor: "Adapt far h factor",
+    adaptRNearFactor: "Adapt near radius factor",
+    adaptRFarFactor: "Adapt far radius factor",
+    adaptGradation: "Adapt gradation",
+    minThickness: "Minimum thickness",
+    minThicknessSamples: "Thickness samples",
+    minThicknessActiveTol: "Thickness active tol",
+    minThicknessInactiveTol: "Thickness inactive tol",
+    minThicknessCorrectionGain: "Thickness correction gain",
+    minThicknessDualTol: "Thickness dual tol",
     shiftX: "Global shift X",
     shiftY: "Global shift Y",
     shiftZ: "Global shift Z",
@@ -260,8 +329,12 @@ const ui = {
     noPreview: "No preview available yet. Run a few iterations or trigger rendering manually.",
     objectiveCurve: "Objective curve",
     volumeCurve: "Volume curve",
+    areaCurve: "Surface area curve",
+    thicknessCurve: "Minimum thickness curve",
     noObjective: "No objective data yet.",
     noVolume: "No volume data yet.",
+    noArea: "No surface area data yet.",
+    noThickness: "No minimum thickness data yet.",
     logsHistory: "Logs & History",
     latestLog: "Latest log",
     noLog: "No logs yet",
@@ -371,99 +444,44 @@ function usePolling<T>(url: string, intervalMs: number, enabled = true) {
 }
 
 function patchDefaults(config: JobConfig): JobConfig {
-  if (config.algorithm === "v2") {
-    return {
-      ...config,
-      convergence_window: config.convergence_window ?? 5,
-      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
-      ns_alpha_j: config.ns_alpha_j ?? 0.5,
-      ns_alpha_c: config.ns_alpha_c ?? 0.5,
-      penalty: undefined
-    };
-  }
-  if (config.algorithm === "v4") {
-    return {
-      ...config,
-      step_k: config.step_k ?? 0.1,
-      convergence_window: config.convergence_window ?? 5,
-      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
-      ns_alpha_j: config.ns_alpha_j ?? 0.5,
-      ns_alpha_c: config.ns_alpha_c ?? 0.5,
-      surface_area_factor: config.surface_area_factor ?? 1.05,
-      final_refine: config.final_refine ?? true,
-      final_hmax_factor: config.final_hmax_factor ?? 0.1,
-      final_hmin_ratio: config.final_hmin_ratio ?? 0.1,
-      final_hausd_ratio: config.final_hausd_ratio ?? 3.0,
-      final_rmc: config.final_rmc ?? 1e-4,
-      smooth_steps: config.smooth_steps ?? 1,
-      smooth_eps_factor: config.smooth_eps_factor ?? 1.0,
-      smooth_iso_shift: config.smooth_iso_shift ?? 0.0,
-      penalty: undefined
-    };
-  }
-  if (config.algorithm === "v6") {
-    return {
-      ...config,
-      objective_mode: config.objective_mode ?? "C",
-      objective_sense: config.objective_sense ?? "min",
-      i_axis: config.i_axis ?? 0,
-      j_axis: config.j_axis ?? 0,
-      step_k: config.step_k ?? 0.1,
-      convergence_window: config.convergence_window ?? 5,
-      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
-      ns_alpha_j: config.ns_alpha_j ?? 0.5,
-      ns_alpha_c: config.ns_alpha_c ?? 0.5,
-      hilbert_alpha_factor: config.hilbert_alpha_factor ?? 16.0,
-      surface_area_factor: config.surface_area_factor ?? 1.05,
-      shift_x: config.shift_x ?? 0.0,
-      shift_y: config.shift_y ?? 0.0,
-      shift_z: config.shift_z ?? 0.0,
-      penalty: undefined
-    };
-  }
-  if (config.algorithm === "v7") {
-    return {
-      ...config,
-      objective_mode: config.objective_mode ?? "C",
-      objective_sense: config.objective_sense ?? "min",
-      i_axis: config.i_axis ?? 0,
-      j_axis: config.j_axis ?? 0,
-      step_k: config.step_k ?? 0.1,
-      convergence_window: config.convergence_window ?? 5,
-      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
-      ns_alpha_j: config.ns_alpha_j ?? 0.5,
-      ns_alpha_c: config.ns_alpha_c ?? 0.5,
-      surface_area_factor: config.surface_area_factor ?? 1.05,
-      shift_x: config.shift_x ?? 0.0,
-      shift_y: config.shift_y ?? 0.0,
-      shift_z: config.shift_z ?? 0.0,
-      final_refine: config.final_refine ?? true,
-      final_hmax_factor: config.final_hmax_factor ?? 0.1,
-      final_hmin_ratio: config.final_hmin_ratio ?? 0.1,
-      final_hausd_ratio: config.final_hausd_ratio ?? 3.0,
-      final_rmc: config.final_rmc ?? 1e-4,
-      smooth_steps: config.smooth_steps ?? 1,
-      smooth_eps_factor: config.smooth_eps_factor ?? 0.1,
-      smooth_iso_shift: config.smooth_iso_shift ?? 0.0,
-      penalty: undefined
-    };
-  }
+  const common: JobConfig = {
+    ...config,
+    objective_mode: config.objective_mode ?? "C",
+    objective_sense: config.objective_sense ?? "min",
+    i_axis: config.i_axis ?? 0,
+    j_axis: config.j_axis ?? 0,
+    step_k: config.step_k ?? 0.1,
+    convergence_window: config.convergence_window ?? 5,
+    convergence_rtol_jraw:
+      config.convergence_rtol_jraw ??
+      (config.algorithm === "v11" || config.algorithm === "v13" || config.algorithm === "v14" || config.algorithm === "v15" ? 5e-2 : 5e-3),
+    ns_alpha_j: config.ns_alpha_j ?? 0.5,
+    ns_alpha_c: config.ns_alpha_c ?? 0.5,
+    surface_area_factor: config.surface_area_factor ?? 1.05,
+    area_policy: config.area_policy ?? "stable",
+    accept_policy: config.accept_policy ?? "objective",
+    area_correction_gain: config.area_correction_gain ?? 0.1,
+    area_gram_rel_tol: config.area_gram_rel_tol ?? 1e-3,
+    adapt_size_map: config.adapt_size_map ?? true,
+    adapt_h_near_factor: config.adapt_h_near_factor ?? 2.0,
+    adapt_h_far_factor: config.adapt_h_far_factor ?? 1.0,
+    adapt_r_near_factor: config.adapt_r_near_factor ?? 1.0,
+    adapt_r_far_factor: config.adapt_r_far_factor ?? 0.5,
+    adapt_gradation: config.adapt_gradation ?? 1.3,
+    min_thickness: config.min_thickness ?? 0.08,
+    min_thickness_samples: config.min_thickness_samples ?? 4,
+    min_thickness_active_tol: config.min_thickness_active_tol ?? 0.0,
+    min_thickness_inactive_tol: config.min_thickness_inactive_tol ?? 0.0,
+    min_thickness_correction_gain: config.min_thickness_correction_gain ?? 0.2,
+    min_thickness_dual_tol: config.min_thickness_dual_tol ?? 1e-10,
+    shift_x: config.shift_x ?? 0.0,
+    shift_y: config.shift_y ?? 0.0,
+    shift_z: config.shift_z ?? 0.0
+  };
+
   if (config.algorithm === "v8") {
     return {
-      ...config,
-      objective_mode: config.objective_mode ?? "C",
-      objective_sense: config.objective_sense ?? "min",
-      i_axis: config.i_axis ?? 0,
-      j_axis: config.j_axis ?? 0,
-      step_k: config.step_k ?? 0.1,
-      convergence_window: config.convergence_window ?? 5,
-      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
-      ns_alpha_j: config.ns_alpha_j ?? 0.5,
-      ns_alpha_c: config.ns_alpha_c ?? 0.5,
-      surface_area_factor: config.surface_area_factor ?? 1.05,
-      shift_x: config.shift_x ?? 0.0,
-      shift_y: config.shift_y ?? 0.0,
-      shift_z: config.shift_z ?? 0.0,
+      ...common,
       final_refine: config.final_refine ?? true,
       final_hmax_factor: config.final_hmax_factor ?? 0.1,
       final_hmin_ratio: config.final_hmin_ratio ?? 0.1,
@@ -473,122 +491,11 @@ function patchDefaults(config: JobConfig): JobConfig {
       smooth_eps_factor: config.smooth_eps_factor ?? 1.0,
       smooth_iso_shift: config.smooth_iso_shift ?? 0.0,
       feature_smooth_kappa_factor: config.feature_smooth_kappa_factor ?? 1.0,
-      feature_smooth_min_weight: config.feature_smooth_min_weight ?? 0.08,
-      penalty: undefined
+      feature_smooth_min_weight: config.feature_smooth_min_weight ?? 0.08
     };
   }
-  if (config.algorithm === "v9") {
-    return {
-      ...config,
-      objective_mode: config.objective_mode ?? "C",
-      objective_sense: config.objective_sense ?? "min",
-      i_axis: config.i_axis ?? 0,
-      j_axis: config.j_axis ?? 0,
-      step_k: config.step_k ?? 0.1,
-      convergence_window: config.convergence_window ?? 5,
-      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
-      ns_alpha_j: config.ns_alpha_j ?? 0.5,
-      ns_alpha_c: config.ns_alpha_c ?? 0.5,
-      surface_area_factor: config.surface_area_factor ?? 1.05,
-      area_correction_gain: config.area_correction_gain ?? 0.1,
-      area_gram_rel_tol: config.area_gram_rel_tol ?? 1e-3,
-      shift_x: config.shift_x ?? 0.0,
-      shift_y: config.shift_y ?? 0.0,
-      shift_z: config.shift_z ?? 0.0,
-      penalty: undefined
-    };
-  }
-  if (config.algorithm === "v10_test" || config.algorithm === "v11_test") {
-    return {
-      ...config,
-      objective_mode: config.objective_mode ?? "C",
-      objective_sense: config.objective_sense ?? "min",
-      i_axis: config.i_axis ?? 0,
-      j_axis: config.j_axis ?? 0,
-      step_k: config.step_k ?? 0.1,
-      convergence_window: config.convergence_window ?? 5,
-      convergence_rtol_jraw: config.convergence_rtol_jraw ?? (config.algorithm === "v11_test" ? 5e-2 : 5e-3),
-      ns_alpha_j: config.ns_alpha_j ?? 0.5,
-      ns_alpha_c: config.ns_alpha_c ?? 0.5,
-      surface_area_factor: config.surface_area_factor ?? 1.05,
-      shift_x: config.shift_x ?? 0.0,
-      shift_y: config.shift_y ?? 0.0,
-      shift_z: config.shift_z ?? 0.0,
-      penalty: undefined
-    };
-  }
-  if (config.algorithm === "v5") {
-    return {
-      ...config,
-      objective_mode: config.objective_mode ?? "C",
-      objective_sense: config.objective_sense ?? "min",
-      i_axis: config.i_axis ?? 0,
-      j_axis: config.j_axis ?? 0,
-      step_k: config.step_k ?? 0.1,
-      convergence_window: config.convergence_window ?? 5,
-      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-3,
-      ns_alpha_j: config.ns_alpha_j ?? 0.5,
-      ns_alpha_c: config.ns_alpha_c ?? 0.5,
-      shift_x: config.shift_x ?? 0.0,
-      shift_y: config.shift_y ?? 0.0,
-      shift_z: config.shift_z ?? 0.0,
-      final_refine: config.final_refine ?? true,
-      final_hmax_factor: config.final_hmax_factor ?? 0.1,
-      final_hmin_ratio: config.final_hmin_ratio ?? 0.1,
-      final_hausd_ratio: config.final_hausd_ratio ?? 3.0,
-      final_rmc: config.final_rmc ?? 1e-4,
-      smooth_steps: config.smooth_steps ?? 1,
-      smooth_eps_factor: config.smooth_eps_factor ?? 1.0,
-      smooth_iso_shift: config.smooth_iso_shift ?? 0.0,
-      penalty: undefined
-    };
-  }
-  if (config.algorithm === "v3") {
-    return {
-      ...config,
-      step_k: config.step_k ?? 0.2,
-      convergence_window: config.convergence_window ?? 5,
-      convergence_rtol_jraw: config.convergence_rtol_jraw ?? 5e-2,
-      ns_alpha_j: config.ns_alpha_j ?? 0.5,
-      ns_alpha_c: config.ns_alpha_c ?? 0.5,
-      final_refine: config.final_refine ?? true,
-      final_hmax_factor: config.final_hmax_factor ?? 0.1,
-      final_hmin_ratio: config.final_hmin_ratio ?? 0.1,
-      final_hausd_ratio: config.final_hausd_ratio ?? 3.0,
-      final_rmc: config.final_rmc ?? 1e-4,
-      smooth_steps: config.smooth_steps ?? 1,
-      smooth_eps_factor: config.smooth_eps_factor ?? 1.0,
-      smooth_iso_shift: config.smooth_iso_shift ?? 0.0,
-      penalty: undefined
-    };
-  }
-  return {
-    ...config,
-    penalty: config.penalty ?? 100
-  };
-}
 
-async function postJson<T>(url: string, payload?: unknown): Promise<T> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: payload ? JSON.stringify(payload) : undefined
-  });
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-  return response.json();
-}
-
-function formatTarget(
-  config: Pick<JobConfig, "objective_mode" | "i_axis" | "j_axis"> & Partial<Pick<JobConfig, "objective_sense">>
-): string {
-  const sense = config.objective_sense ?? "min";
-  return `${sense} ${config.objective_mode}_${config.i_axis}${config.j_axis}`;
-}
-
-function formatHmax(config: Pick<JobConfig, "hmax">): string {
-  return `hmax=${config.hmax}`;
+  return common;
 }
 
 function formatDuration(seconds?: number | null): string {
@@ -640,6 +547,26 @@ function smoothNameForMesh(meshName: string | null): string | null {
   return meshName.endsWith(".mesh") ? `${meshName.slice(0, -5)}.postsmooth.mesh` : null;
 }
 
+async function postJson<T = unknown>(url: string, payload?: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: payload === undefined ? undefined : JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return response.json() as Promise<T>;
+}
+
+function formatTarget(config: Pick<JobConfig, "objective_mode" | "objective_sense" | "i_axis" | "j_axis">): string {
+  return `${config.objective_sense} ${config.objective_mode}${config.i_axis}${config.j_axis}`;
+}
+
+function formatHmax(config: Pick<JobConfig, "hmax" | "hmin_ratio" | "hausd_ratio">): string {
+  return `hmax=${config.hmax}, hmin=${config.hmin_ratio}, hausd=${config.hausd_ratio}`;
+}
+
 export default function App() {
   const [locale, setLocale] = useState<Locale>(() => {
     const stored = window.localStorage.getItem("levelset-console-locale");
@@ -648,6 +575,7 @@ export default function App() {
   const { data: configData } = usePolling<any>("/api/config", 10000);
   const [selectedExperimentId, setSelectedExperimentId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("create");
+  const [activeTab, setActiveTab] = useState<TopTab>("create");
   const jobsUrl = useMemo(
     () => `/api/jobs${selectedExperimentId ? `?focus=${encodeURIComponent(selectedExperimentId)}` : ""}`,
     [selectedExperimentId]
@@ -669,10 +597,9 @@ export default function App() {
   const [shapePreviewFailed, setShapePreviewFailed] = useState(false);
   const [showPostSmoothPanel, setShowPostSmoothPanel] = useState(false);
   const [selectedMeshName, setSelectedMeshName] = useState<string | null>(null);
-  const [sectionOpen, setSectionOpen] = useState({
-    running: true,
-    favorites: true,
-    recent: true
+  const [browserFilters, setBrowserFilters] = useState<Record<BrowserTab, ExperimentFilters>>({
+    favorites: { sense: "all", mode: "all", query: "" },
+    history: { sense: "all", mode: "all", query: "" }
   });
   const t = ui[locale];
 
@@ -682,9 +609,14 @@ export default function App() {
     () => (experimentsData ?? []).filter((experiment) => Boolean(experiment.meta?.favorite)),
     [experimentsData]
   );
-  const recentExperiments = useMemo(
-    () => (experimentsData ?? []).filter((experiment) => !experiment.meta?.favorite),
-    [experimentsData]
+  const historyExperiments = useMemo(() => experimentsData ?? [], [experimentsData]);
+  const filteredFavoriteExperiments = useMemo(
+    () => filterExperimentSummaries(favoriteExperiments, browserFilters.favorites),
+    [favoriteExperiments, browserFilters.favorites]
+  );
+  const filteredHistoryExperiments = useMemo(
+    () => filterExperimentSummaries(historyExperiments, browserFilters.history),
+    [historyExperiments, browserFilters.history]
   );
   const activeRunning = useMemo(
     () => runningExperiments.find((job) => job.id === selectedExperimentId) ?? null,
@@ -711,42 +643,9 @@ export default function App() {
     { key: "Q", enabled: true }
   ];
   const objectiveSenses = configData?.objective_senses ?? ["min", "max"];
-  const supportsC =
-    form.algorithm === "v1" ||
-    form.algorithm === "v2" ||
-    form.algorithm === "v3" ||
-    form.algorithm === "v4" ||
-    form.algorithm === "v5" ||
-    form.algorithm === "v6" ||
-    form.algorithm === "v7" ||
-    form.algorithm === "v8" ||
-    form.algorithm === "v9" ||
-    form.algorithm === "v10_test" ||
-    form.algorithm === "v11_test";
-  const supportsQ =
-    form.algorithm === "v1" ||
-    form.algorithm === "v2" ||
-    form.algorithm === "v3" ||
-    form.algorithm === "v4" ||
-    form.algorithm === "v5" ||
-    form.algorithm === "v6" ||
-    form.algorithm === "v7" ||
-    form.algorithm === "v8" ||
-    form.algorithm === "v9" ||
-    form.algorithm === "v10_test" ||
-    form.algorithm === "v11_test";
-  const supportsObjectiveSense =
-    form.algorithm === "v1" ||
-    form.algorithm === "v2" ||
-    form.algorithm === "v3" ||
-    form.algorithm === "v4" ||
-    form.algorithm === "v5" ||
-    form.algorithm === "v6" ||
-    form.algorithm === "v7" ||
-    form.algorithm === "v8" ||
-    form.algorithm === "v9" ||
-    form.algorithm === "v10_test" ||
-    form.algorithm === "v11_test";
+  const supportsC = true;
+  const supportsQ = true;
+  const supportsObjectiveSense = true;
   const selectedShape = shapes.find((shape: any) => shape.key === form.initial_shape) ?? null;
   const shapePreviewSvgUrl = useMemo(
     () => `data:image/svg+xml;utf8,${encodeURIComponent(shapePreviewSvg(form.dimension, form.initial_shape))}`,
@@ -824,22 +723,12 @@ export default function App() {
   const activeDetail = activeRunning ?? detailData ?? null;
   const objectiveSeries = activeDetail?.series?.["obj.txt"];
   const volumeSeries = activeDetail?.series?.["vol.txt"];
+  const thinSeries = activeDetail?.series?.["thin.txt"];
   const activeCameraUrl =
     activeDetail?.preview_urls?.[form.camera_preset] ?? activeDetail?.final_urls?.[form.camera_preset] ?? null;
   const supportsFinalMesh =
     activeDetail?.config.dimension === "3d" &&
-    (
-      activeDetail?.config.algorithm === "v2" ||
-      activeDetail?.config.algorithm === "v3" ||
-      activeDetail?.config.algorithm === "v4" ||
-      activeDetail?.config.algorithm === "v5" ||
-      activeDetail?.config.algorithm === "v6" ||
-      activeDetail?.config.algorithm === "v7" ||
-      activeDetail?.config.algorithm === "v8" ||
-      activeDetail?.config.algorithm === "v9" ||
-      activeDetail?.config.algorithm === "v10_test" ||
-      activeDetail?.config.algorithm === "v11_test"
-    );
+    ["v8", "v9", "v11", "v13", "v14", "v15"].includes(activeDetail?.config.algorithm);
   const meshOptions: MeshOption[] = supportsFinalMesh ? activeDetail?.mesh_options ?? [] : [];
   const defaultMeshName =
     meshOptions.find((option) => option.is_default)?.name ?? meshOptions[0]?.name ?? null;
@@ -944,6 +833,7 @@ export default function App() {
       const payload = patchDefaults(form);
       const response = await postJson<ExperimentDetail>("/api/jobs", payload);
       setSelectedExperimentId(response.id);
+      setActiveTab("history");
       setViewMode("experiment");
       setDetailData(response);
       setJobsData((prev) => {
@@ -1053,6 +943,8 @@ export default function App() {
       if (selectedExperimentId === id) {
         setSelectedExperimentId(null);
         setDetailData(null);
+        setActiveTab("history");
+        setViewMode("history");
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : t.deleteFailed);
@@ -1084,10 +976,6 @@ export default function App() {
     }
   };
 
-  const toggleSection = (key: "running" | "favorites" | "recent") => {
-    setSectionOpen((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
   const handlePresetLoad = (name: string) => {
     const preset = presets.find((item: any) => item.name === name);
     if (!preset) {
@@ -1112,13 +1000,183 @@ export default function App() {
 
     setForm(patchDefaults({ ...defaultConfig, ...activeDetail.config }));
     setPendingDeleteId(null);
+    setActiveTab("create");
     setViewMode("create");
     setMessage(t.loadedConfigForCreate);
   };
 
+  const handleTabChange = (tab: TopTab) => {
+    setPendingDeleteId(null);
+    setActiveTab(tab);
+    setViewMode(tab);
+  };
+
+  const openExperiment = (experimentId: string, sourceTab: BrowserTab = activeTab === "favorites" ? "favorites" : "history") => {
+    setPendingDeleteId(null);
+    setActiveTab(sourceTab);
+    setViewMode("experiment");
+    setSelectedExperimentId(experimentId);
+  };
+
+  const updateBrowserFilter = <K extends keyof ExperimentFilters>(
+    tab: BrowserTab,
+    key: K,
+    value: ExperimentFilters[K]
+  ) => {
+    setBrowserFilters((prev) => ({
+      ...prev,
+      [tab]: {
+        ...prev[tab],
+        [key]: value
+      }
+    }));
+  };
+
+  const renderExperimentRow = (experiment: ExperimentSummary, sourceTab: BrowserTab) => (
+    <div
+      key={experiment.id}
+      className={`experiment-row ${selectedExperimentId === experiment.id ? "active" : ""}`}
+    >
+      <button
+        className={`history-favorite ${experiment.meta?.favorite ? "active" : ""}`}
+        disabled={busy}
+        title={experiment.meta?.favorite ? t.unfavorite : t.favorite}
+        onClick={() => void handleFavoriteExperiment(experiment.id, !Boolean(experiment.meta?.favorite))}
+      >
+        {experiment.meta?.favorite ? "★" : "☆"}
+      </button>
+      <button className="experiment-row-main" onClick={() => openExperiment(experiment.id, sourceTab)}>
+        <strong>{experiment.config.algorithm} / {experiment.config.initial_shape}</strong>
+        <span>{experiment.id}</span>
+      </button>
+      <div className="experiment-cell">
+        <span>{t.currentTarget}</span>
+        <strong>{formatTarget(experiment.config)}</strong>
+      </div>
+      <div className="experiment-cell">
+        <span>mesh</span>
+        <strong>{formatHmax(experiment.config)}</strong>
+      </div>
+      <div className="experiment-cell">
+        <span>{t.metrics.iteration}</span>
+        <strong>{experiment.summary.iteration ?? "-"}</strong>
+      </div>
+      <div className="experiment-cell">
+        <span>{t.metrics.stage}</span>
+        <strong>{experiment.summary.stage ?? String(experiment.meta?.status ?? "-")}</strong>
+      </div>
+      <div className="experiment-cell">
+        <span>{t.metrics.duration}</span>
+        <strong>{formatDuration(experiment.summary.duration_seconds)}</strong>
+      </div>
+      <div className="experiment-row-actions">
+        <button className="secondary" onClick={() => openExperiment(experiment.id, sourceTab)}>
+          {t.openExperiment}
+        </button>
+        <button
+          className="danger"
+          disabled={busy || runningIds.has(experiment.id)}
+          onClick={() => void handleDeleteExperiment(experiment.id)}
+        >
+          {pendingDeleteId === experiment.id ? t.confirmDelete : t.delete}
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderRunningJobs = () => {
+    if (!runningExperiments.length) {
+      return null;
+    }
+
+    return (
+      <div className="running-strip">
+        <div className="running-strip-title">{t.runningQueue}</div>
+        <div className="running-strip-list">
+          {runningExperiments.map((job) => (
+            <div key={job.id} className={`running-pill ${selectedExperimentId === job.id ? "active" : ""}`}>
+              <button className="running-pill-main" onClick={() => openExperiment(job.id, "history")}>
+                <strong>{job.config.algorithm} / {job.config.initial_shape}</strong>
+                <span>{formatTarget(job.config)} · it={job.summary.iteration ?? "-"} · {job.summary.stage ?? "running"}</span>
+              </button>
+              <button className="danger" disabled={busy} onClick={() => void handleStop(job.id)}>
+                {t.stopJob}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderExperimentBrowser = (tab: BrowserTab) => {
+    const source = tab === "favorites" ? favoriteExperiments : historyExperiments;
+    const experiments = tab === "favorites" ? filteredFavoriteExperiments : filteredHistoryExperiments;
+    const filters = browserFilters[tab];
+
+    return (
+      <div className="experiment-browser">
+        <div className="section-header browser-header">
+          <div>
+            <h2>{tab === "favorites" ? t.favorites : t.recentExperiments}</h2>
+            <p>{t.showResults(experiments.length, source.length)}</p>
+          </div>
+        </div>
+
+        <div className="experiment-filters">
+          <label>
+            {t.searchExperiments}
+            <input
+              value={filters.query}
+              placeholder={t.searchExperimentsPlaceholder}
+              onChange={(event) => updateBrowserFilter(tab, "query", event.target.value)}
+            />
+          </label>
+          <label>
+            {t.filterSense}
+            <select
+              value={filters.sense}
+              onChange={(event) =>
+                updateBrowserFilter(tab, "sense", event.target.value as ExperimentFilterValue<JobConfig["objective_sense"]>)
+              }
+            >
+              <option value="all">{t.all}</option>
+              <option value="max">max</option>
+              <option value="min">min</option>
+            </select>
+          </label>
+          <label>
+            {t.filterMode}
+            <select
+              value={filters.mode}
+              onChange={(event) =>
+                updateBrowserFilter(tab, "mode", event.target.value as ExperimentFilterValue<JobConfig["objective_mode"]>)
+              }
+            >
+              <option value="all">{t.all}</option>
+              <option value="K">K</option>
+              <option value="C">C</option>
+              <option value="Q">Q</option>
+            </select>
+          </label>
+        </div>
+
+        {experiments.length ? (
+          <div className="experiment-list">
+            {experiments.map((experiment) => renderExperimentRow(experiment, tab))}
+          </div>
+        ) : (
+          <div className="placeholder">{tab === "favorites" && !source.length ? t.noFavorites : t.noExperiments}</div>
+        )}
+
+        {message && <div className="notice">{message}</div>}
+      </div>
+    );
+  };
+
   return (
     <div className="app-shell">
-      <aside className="panel task-nav">
+      <header className="panel app-header">
         <div className="section-header">
           <h1>LevelSetStokes Console</h1>
           <div className="header-row">
@@ -1130,156 +1188,20 @@ export default function App() {
           </div>
         </div>
 
-        <button
-          className={`nav-create-button ${viewMode === "create" ? "active" : ""}`}
-          onClick={() => {
-            setPendingDeleteId(null);
-            setViewMode("create");
-          }}
-        >
-          <strong>{t.newExperiment}</strong>
-        </button>
-
-        <div className="nav-section">
-          <button className="nav-section-toggle" onClick={() => toggleSection("running")}>
-            <h3>{t.runningQueue}</h3>
-            <span>{sectionOpen.running ? "▾" : "▸"}</span>
+        <div className="top-tabs" role="tablist" aria-label="Experiment pages">
+          <button className={activeTab === "create" ? "active" : ""} onClick={() => handleTabChange("create")}>
+            {t.newExperiment}
           </button>
-          {sectionOpen.running ? (runningExperiments.length ? (
-            <div className="running-list nav-list">
-              {runningExperiments.map((job) => (
-                <div
-                  key={job.id}
-                  className={`running-item ${selectedExperimentId === job.id ? "active" : ""}`}
-                >
-                  <button
-                  className="history-main"
-                  onClick={() => {
-                      setPendingDeleteId(null);
-                      setViewMode("experiment");
-                      setSelectedExperimentId(job.id);
-                    }}
-                  >
-                    <strong>
-                      {job.config.dimension.toUpperCase()} / {job.config.algorithm} / {job.config.initial_shape}
-                    </strong>
-                    <span>
-                      {formatTarget(job.config)} · it={job.summary.iteration ?? "-"}
-                    </span>
-                    <span>{formatHmax(job.config)} · {job.summary.stage ?? String(job.meta.status ?? "running")}</span>
-                    <span>{t.metrics.duration}: {formatDuration(job.summary.duration_seconds)}</span>
-                  </button>
-                  <button
-                    className="history-delete danger"
-                    disabled={busy}
-                    onClick={() => void handleStop(job.id)}
-                  >
-                    {t.stopJob}
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="placeholder">{t.noRunningJobs}</div>
-          )) : null}
-        </div>
-
-        <div className="nav-section">
-          <button className="nav-section-toggle" onClick={() => toggleSection("favorites")}>
-            <h3>{t.favorites}</h3>
-            <span>{sectionOpen.favorites ? "▾" : "▸"}</span>
+          <button className={activeTab === "favorites" ? "active" : ""} onClick={() => handleTabChange("favorites")}>
+            {t.favorites}
           </button>
-          {sectionOpen.favorites ? (favoriteExperiments.length ? (
-          <div className="history-list nav-list">
-            {favoriteExperiments.map((experiment) => (
-              <div
-                key={experiment.id}
-                className={`history-item ${selectedExperimentId === experiment.id ? "active" : ""}`}
-              >
-                <button
-                  className="history-main"
-                  onClick={() => {
-                    setPendingDeleteId(null);
-                    setViewMode("experiment");
-                    setSelectedExperimentId(experiment.id);
-                  }}
-                >
-                  <strong>
-                    {experiment.config.dimension.toUpperCase()} / {experiment.config.algorithm} / {experiment.config.initial_shape}
-                  </strong>
-                  <span>{formatTarget(experiment.config)} · {formatHmax(experiment.config)}</span>
-                  <span>{t.metrics.duration}: {formatDuration(experiment.summary.duration_seconds)}</span>
-                </button>
-                <button
-                  className={`history-favorite ${experiment.meta?.favorite ? "active" : ""}`}
-                  disabled={busy}
-                  title={experiment.meta?.favorite ? t.unfavorite : t.favorite}
-                  onClick={() => void handleFavoriteExperiment(experiment.id, !Boolean(experiment.meta?.favorite))}
-                >
-                  {experiment.meta?.favorite ? "★" : "☆"}
-                </button>
-                <button
-                  className="history-delete danger"
-                  disabled={busy || runningIds.has(experiment.id)}
-                  onClick={() => void handleDeleteExperiment(experiment.id)}
-                >
-                  {pendingDeleteId === experiment.id ? t.confirmDelete : t.delete}
-                </button>
-              </div>
-            ))}
-          </div>
-          ) : (
-            <div className="placeholder">{t.noFavorites}</div>
-          )) : null}
-        </div>
-
-        <div className="nav-section">
-          <button className="nav-section-toggle" onClick={() => toggleSection("recent")}>
-            <h3>{t.recentExperiments}</h3>
-            <span>{sectionOpen.recent ? "▾" : "▸"}</span>
+          <button className={activeTab === "history" ? "active" : ""} onClick={() => handleTabChange("history")}>
+            {t.recentExperiments}
           </button>
-          {sectionOpen.recent ? (
-          <div className="history-list nav-list">
-            {recentExperiments.map((experiment) => (
-              <div
-                key={experiment.id}
-                className={`history-item ${selectedExperimentId === experiment.id ? "active" : ""}`}
-              >
-                <button
-                  className="history-main"
-                  onClick={() => {
-                    setPendingDeleteId(null);
-                    setViewMode("experiment");
-                    setSelectedExperimentId(experiment.id);
-                  }}
-                >
-                  <strong>
-                    {experiment.config.dimension.toUpperCase()} / {experiment.config.algorithm} / {experiment.config.initial_shape}
-                  </strong>
-                  <span>{formatTarget(experiment.config)} · {formatHmax(experiment.config)}</span>
-                  <span>{t.metrics.duration}: {formatDuration(experiment.summary.duration_seconds)}</span>
-                </button>
-                <button
-                  className={`history-favorite ${experiment.meta?.favorite ? "active" : ""}`}
-                  disabled={busy}
-                  title={experiment.meta?.favorite ? t.unfavorite : t.favorite}
-                  onClick={() => void handleFavoriteExperiment(experiment.id, !Boolean(experiment.meta?.favorite))}
-                >
-                  {experiment.meta?.favorite ? "★" : "☆"}
-                </button>
-                <button
-                  className="history-delete danger"
-                  disabled={busy || runningIds.has(experiment.id)}
-                  onClick={() => void handleDeleteExperiment(experiment.id)}
-                >
-                  {pendingDeleteId === experiment.id ? t.confirmDelete : t.delete}
-                </button>
-              </div>
-            ))}
-          </div>
-          ) : null}
         </div>
-      </aside>
+      </header>
+
+      {renderRunningJobs()}
 
       <main className="panel workspace">
         {viewMode === "create" ? (
@@ -1321,23 +1243,20 @@ export default function App() {
                         patchDefaults({
                           ...prev,
                           algorithm,
-                          convergence_rtol_jraw: algorithm === "v11_test" ? 5e-2 : prev.convergence_rtol_jraw,
-                          smooth_eps_factor: algorithm === "v7" ? 0.1 : prev.smooth_eps_factor
+                          convergence_rtol_jraw:
+                            algorithm === "v11" || algorithm === "v13" || algorithm === "v14" || algorithm === "v15"
+                              ? 5e-2
+                              : prev.convergence_rtol_jraw
                         })
                       );
                     }}
                   >
-                    <option value="v1">3Dv1</option>
-                    <option value="v2">3Dv2</option>
-                    <option value="v3">3Dv3</option>
-                    <option value="v4">3Dv4</option>
-                    <option value="v5">3Dv5</option>
-                    <option value="v6">3Dv6</option>
-                    <option value="v7">3Dv7</option>
                     <option value="v8">3Dv8</option>
                     <option value="v9">3Dv9</option>
-                    <option value="v10_test">3Dv10_test</option>
-                    <option value="v11_test">3Dv11_test</option>
+                    <option value="v11">3Dv11</option>
+                    <option value="v13">3Dv13</option>
+                    <option value="v14">3Dv14</option>
+                    <option value="v15">3Dv15 MinT</option>
                   </select>
                 </label>
 
@@ -1442,7 +1361,7 @@ export default function App() {
                   <input disabled={busy} type="number" value={form.max_iters} onChange={(e) => setForm((prev) => ({ ...prev, max_iters: Number(e.target.value) }))} />
                 </label>
 
-                {(form.algorithm === "v2" || form.algorithm === "v3" || form.algorithm === "v4" || form.algorithm === "v5" || form.algorithm === "v6" || form.algorithm === "v7" || form.algorithm === "v8" || form.algorithm === "v9" || form.algorithm === "v10_test" || form.algorithm === "v11_test") && (
+                {(["v8", "v9", "v11", "v13", "v14", "v15"] as const).includes(form.algorithm) && (
                   <>
                     <label>
                       {t.convergenceWindow}
@@ -1467,7 +1386,7 @@ export default function App() {
                       />
                     </label>
 
-                    {(form.algorithm === "v2" || form.algorithm === "v3" || form.algorithm === "v4" || form.algorithm === "v5" || form.algorithm === "v6" || form.algorithm === "v7" || form.algorithm === "v8" || form.algorithm === "v9" || form.algorithm === "v10_test" || form.algorithm === "v11_test") && (
+                    {(["v8", "v9", "v11", "v13", "v14", "v15"] as const).includes(form.algorithm) && (
                       <>
                         <label>
                           {t.nsAlphaJ}
@@ -1491,23 +1410,10 @@ export default function App() {
                           />
                         </label>
 
-                        {form.algorithm === "v6" && (
-                          <label>
-                            {t.hilbertAlphaFactor}
-                            <input
-                              disabled={busy}
-                              type="number"
-                              step="1"
-                              min="0.01"
-                              value={form.hilbert_alpha_factor}
-                              onChange={(e) => setForm((prev) => ({ ...prev, hilbert_alpha_factor: Number(e.target.value) }))}
-                            />
-                          </label>
-                        )}
                       </>
                     )}
 
-                    {(form.algorithm === "v4" || form.algorithm === "v6" || form.algorithm === "v7" || form.algorithm === "v8" || form.algorithm === "v9" || form.algorithm === "v10_test" || form.algorithm === "v11_test") && (
+                    {(["v8", "v9", "v11", "v13", "v14", "v15"] as const).includes(form.algorithm) && (
                       <>
                         <label>
                           {t.surfaceAreaFactor}
@@ -1520,7 +1426,7 @@ export default function App() {
                           />
                         </label>
 
-                        {form.algorithm === "v9" && (
+                        {(form.algorithm === "v9" || form.algorithm === "v13" || form.algorithm === "v14" || form.algorithm === "v15") && (
                           <>
                             <label>
                               {t.areaCorrectionGain}
@@ -1544,10 +1450,185 @@ export default function App() {
                             </label>
                           </>
                         )}
+
+                        {(form.algorithm === "v13" || form.algorithm === "v14" || form.algorithm === "v15") && (
+                          <>
+                            <label>
+                              {t.areaPolicy}
+                              <select
+                                disabled={busy}
+                                value={form.area_policy}
+                                onChange={(e) => setForm((prev) => ({ ...prev, area_policy: e.target.value as JobConfig["area_policy"] }))}
+                              >
+                                <option value="basic">{t.areaPolicyBasic}</option>
+                                <option value="stable">{t.areaPolicyStable}</option>
+                              </select>
+                            </label>
+
+                            {(form.algorithm === "v13" || form.algorithm === "v14") && (
+                              <label>
+                                {t.acceptPolicy}
+                                <select
+                                  disabled={busy}
+                                  value={form.accept_policy}
+                                  onChange={(e) => setForm((prev) => ({ ...prev, accept_policy: e.target.value as JobConfig["accept_policy"] }))}
+                                >
+                                  <option value="mesh_only">{t.acceptPolicyMeshOnly}</option>
+                                  <option value="objective">{t.acceptPolicyObjective}</option>
+                                </select>
+                              </label>
+                            )}
+                          </>
+                        )}
+
+                        {(form.algorithm === "v14" || form.algorithm === "v15") && (
+                          <>
+                            <label className="inline-checkbox">
+                              <input
+                                disabled={busy}
+                                type="checkbox"
+                                checked={form.adapt_size_map}
+                                onChange={(e) => setForm((prev) => ({ ...prev, adapt_size_map: e.target.checked }))}
+                              />
+                              {t.adaptSizeMap}
+                            </label>
+
+                            <label>
+                              {t.adaptHNearFactor}
+                              <input
+                                disabled={busy || !form.adapt_size_map}
+                                type="number"
+                                step="0.1"
+                                value={form.adapt_h_near_factor}
+                                onChange={(e) => setForm((prev) => ({ ...prev, adapt_h_near_factor: Number(e.target.value) }))}
+                              />
+                            </label>
+
+                            <label>
+                              {t.adaptHFarFactor}
+                              <input
+                                disabled={busy || !form.adapt_size_map}
+                                type="number"
+                                step="0.1"
+                                value={form.adapt_h_far_factor}
+                                onChange={(e) => setForm((prev) => ({ ...prev, adapt_h_far_factor: Number(e.target.value) }))}
+                              />
+                            </label>
+
+                            <label>
+                              {t.adaptRNearFactor}
+                              <input
+                                disabled={busy || !form.adapt_size_map}
+                                type="number"
+                                step="0.1"
+                                value={form.adapt_r_near_factor}
+                                onChange={(e) => setForm((prev) => ({ ...prev, adapt_r_near_factor: Number(e.target.value) }))}
+                              />
+                            </label>
+
+                            <label>
+                              {t.adaptRFarFactor}
+                              <input
+                                disabled={busy || !form.adapt_size_map}
+                                type="number"
+                                step="0.1"
+                                value={form.adapt_r_far_factor}
+                                onChange={(e) => setForm((prev) => ({ ...prev, adapt_r_far_factor: Number(e.target.value) }))}
+                              />
+                            </label>
+
+                            <label>
+                              {t.adaptGradation}
+                              <input
+                                disabled={busy || !form.adapt_size_map}
+                                type="number"
+                                step="0.05"
+                                value={form.adapt_gradation}
+                                onChange={(e) => setForm((prev) => ({ ...prev, adapt_gradation: Number(e.target.value) }))}
+                              />
+                            </label>
+                          </>
+                        )}
+
+                        {form.algorithm === "v15" && (
+                          <>
+                            <label>
+                              {t.minThickness}
+                              <input
+                                disabled={busy}
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={form.min_thickness}
+                                onChange={(e) => setForm((prev) => ({ ...prev, min_thickness: Number(e.target.value) }))}
+                              />
+                            </label>
+
+                            <label>
+                              {t.minThicknessSamples}
+                              <input
+                                disabled={busy}
+                                type="number"
+                                min="1"
+                                step="1"
+                                value={form.min_thickness_samples}
+                                onChange={(e) => setForm((prev) => ({ ...prev, min_thickness_samples: Number(e.target.value) }))}
+                              />
+                            </label>
+
+                            <label>
+                              {t.minThicknessCorrectionGain}
+                              <input
+                                disabled={busy}
+                                type="number"
+                                min="0"
+                                step="0.05"
+                                value={form.min_thickness_correction_gain}
+                                onChange={(e) => setForm((prev) => ({ ...prev, min_thickness_correction_gain: Number(e.target.value) }))}
+                              />
+                            </label>
+
+                            <label>
+                              {t.minThicknessActiveTol}
+                              <input
+                                disabled={busy}
+                                type="number"
+                                min="0"
+                                step="0.001"
+                                value={form.min_thickness_active_tol}
+                                onChange={(e) => setForm((prev) => ({ ...prev, min_thickness_active_tol: Number(e.target.value) }))}
+                              />
+                            </label>
+
+                            <label>
+                              {t.minThicknessInactiveTol}
+                              <input
+                                disabled={busy}
+                                type="number"
+                                min="0"
+                                step="0.001"
+                                value={form.min_thickness_inactive_tol}
+                                onChange={(e) => setForm((prev) => ({ ...prev, min_thickness_inactive_tol: Number(e.target.value) }))}
+                              />
+                            </label>
+
+                            <label>
+                              {t.minThicknessDualTol}
+                              <input
+                                disabled={busy}
+                                type="number"
+                                min="0"
+                                step="1e-10"
+                                value={form.min_thickness_dual_tol}
+                                onChange={(e) => setForm((prev) => ({ ...prev, min_thickness_dual_tol: Number(e.target.value) }))}
+                              />
+                            </label>
+                          </>
+                        )}
                       </>
                     )}
 
-                    {(form.algorithm === "v5" || form.algorithm === "v6" || form.algorithm === "v7" || form.algorithm === "v8" || form.algorithm === "v9" || form.algorithm === "v10_test" || form.algorithm === "v11_test") && (
+                    {(["v8", "v9", "v11", "v13", "v14", "v15"] as const).includes(form.algorithm) && (
                       <>
                         <label>
                           {t.shiftX}
@@ -1584,7 +1665,7 @@ export default function App() {
                       </>
                     )}
 
-                    {(form.algorithm === "v3" || form.algorithm === "v4" || form.algorithm === "v5" || form.algorithm === "v7" || form.algorithm === "v8") && (
+                    {(form.algorithm === "v8") && (
                       <>
                         <label className="inline-checkbox">
                           <input
@@ -1705,13 +1786,6 @@ export default function App() {
                     )}
                   </>
                 )}
-
-                {form.algorithm === "v1" && (
-                  <label>
-                    AL penalty
-                    <input disabled={busy} type="number" value={form.penalty ?? 100} onChange={(e) => setForm((prev) => ({ ...prev, penalty: Number(e.target.value) }))} />
-                  </label>
-                )}
               </div>
             </div>
 
@@ -1811,6 +1885,8 @@ export default function App() {
 
             {message && <div className="notice">{message}</div>}
           </div>
+        ) : viewMode === "favorites" || viewMode === "history" ? (
+          renderExperimentBrowser(viewMode)
         ) : (
         <div className="detail-stack">
           <div className="status-grid">
@@ -2167,6 +2243,46 @@ export default function App() {
                 </ResponsiveContainer>
               ) : (
                 <div className="placeholder">{t.noVolume}</div>
+              )}
+            </div>
+
+            <div className="chart-card">
+              <h3>{t.areaCurve}</h3>
+              {volumeSeries?.rows?.length && volumeSeries.columns.includes("area") ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <LineChart data={volumeSeries.rows}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey={volumeSeries.columns[0]} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="area" stroke="#008a63" dot={false} />
+                    {volumeSeries.columns.includes("area_violation") ? (
+                      <Line type="monotone" dataKey="area_violation" stroke="#7c3aed" dot={false} />
+                    ) : null}
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="placeholder">{t.noArea}</div>
+              )}
+            </div>
+
+            <div className="chart-card">
+              <h3>{t.thicknessCurve}</h3>
+              {thinSeries?.rows?.length ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <LineChart data={thinSeries.rows}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey={thinSeries.columns[0]} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="max_violation" stroke="#c2410c" dot={false} />
+                    <Line type="monotone" dataKey="penalty" stroke="#0f766e" dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="placeholder">{t.noThickness}</div>
               )}
             </div>
           </div>

@@ -1,5 +1,5 @@
 export type Dimension = "3d";
-export type Algorithm = "v1" | "v2" | "v3" | "v4" | "v5" | "v6" | "v7" | "v8" | "v9" | "v10_test" | "v11_test";
+export type Algorithm = "v8" | "v9" | "v11" | "v13" | "v14" | "v15";
 export type ObjectiveMode = "K" | "C" | "Q";
 export type ObjectiveSense = "min" | "max";
 
@@ -21,10 +21,23 @@ export type JobConfig = {
   convergence_rtol_jraw: number;
   ns_alpha_j: number;
   ns_alpha_c: number;
-  hilbert_alpha_factor: number;
   surface_area_factor: number;
+  area_policy: "basic" | "stable";
+  accept_policy: "mesh_only" | "objective";
   area_correction_gain: number;
   area_gram_rel_tol: number;
+  adapt_size_map: boolean;
+  adapt_h_near_factor: number;
+  adapt_h_far_factor: number;
+  adapt_r_near_factor: number;
+  adapt_r_far_factor: number;
+  adapt_gradation: number;
+  min_thickness: number;
+  min_thickness_samples: number;
+  min_thickness_active_tol: number;
+  min_thickness_inactive_tol: number;
+  min_thickness_correction_gain: number;
+  min_thickness_dual_tol: number;
   shift_x: number;
   shift_y: number;
   shift_z: number;
@@ -38,7 +51,6 @@ export type JobConfig = {
   smooth_iso_shift: number;
   feature_smooth_kappa_factor: number;
   feature_smooth_min_weight: number;
-  penalty?: number | null;
   camera_preset: "default" | "front" | "side" | "top" | "isometric";
   fps: number;
   width: number;

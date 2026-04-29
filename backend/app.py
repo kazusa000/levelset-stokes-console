@@ -51,64 +51,22 @@ DEFAULT_HAUSD_RATIO = 0.1
 PHASE_OBSTACLE = 2
 PHASE_FLUID = 3
 
+SUPPORTED_ALGORITHMS = {"v8", "v9", "v11", "v13", "v14", "v15"}
+
 ALGORITHM_ALIASES: dict[str, str] = {
-    "v1": "v1",
-    "v2": "v2",
-    "v3": "v3",
-    "v4": "v4",
-    "v5": "v5",
-    "v6": "v6",
-    "v7": "v7",
     "v8": "v8",
-    "v9": "v9",
-    "v10_test": "v10_test",
-    "v11_test": "v11_test",
-    "v4_test": "v4",
-    "v5_test": "v5",
     "v8_test": "v8",
-    "original": "v1",
-    "ns": "v2",
-    "test_3DNS_phi_smooth1": "v3",
+    "v9": "v9",
+    "v11": "v11",
+    "v11_test": "v11",
+    "v13": "v13",
+    "v14": "v14",
+    "v14_test": "v14",
+    "v15": "v15",
+    "v15_test": "v15",
 }
 
 TARGETS: dict[tuple[str, str], dict[str, Any]] = {
-    ("3d", "v1"): {
-        "target": "PETSc_3Dv1",
-        "xdmf": "3Dv1.xdmf",
-        "history": ["obj.txt", "vol.txt", "al.txt"],
-    },
-    ("3d", "v2"): {
-        "target": "PETSc_3Dv2",
-        "xdmf": "3Dv2.xdmf",
-        "history": ["obj.txt", "vol.txt", "ns.txt"],
-    },
-    ("3d", "v3"): {
-        "target": "PETSc_3Dv3",
-        "xdmf": "3Dv3.xdmf",
-        "history": ["obj.txt", "vol.txt", "ns.txt"],
-    },
-    ("3d", "v4"): {
-        "target": "PETSc_3Dv4_test",
-        "xdmf": "3Dv4.xdmf",
-        "xdmf_aliases": ["3Dv4_test.xdmf"],
-        "history": ["obj.txt", "vol.txt", "ns.txt"],
-    },
-    ("3d", "v5"): {
-        "target": "PETSc_3Dv5_test",
-        "xdmf": "3Dv5.xdmf",
-        "xdmf_aliases": ["3Dv5_test.xdmf"],
-        "history": ["obj.txt", "vol.txt", "ns.txt", "centroid.txt"],
-    },
-    ("3d", "v6"): {
-        "target": "PETSc_3Dv6",
-        "xdmf": "3Dv6.xdmf",
-        "history": ["obj.txt", "vol.txt", "ns.txt", "centroid.txt"],
-    },
-    ("3d", "v7"): {
-        "target": "PETSc_3Dv7_test",
-        "xdmf": "3Dv7.xdmf",
-        "history": ["obj.txt", "vol.txt", "ns.txt", "centroid.txt"],
-    },
     ("3d", "v8"): {
         "target": "PETSc_3Dv8_test",
         "xdmf": "3Dv8.xdmf",
@@ -119,15 +77,25 @@ TARGETS: dict[tuple[str, str], dict[str, Any]] = {
         "xdmf": "3Dv9.xdmf",
         "history": ["obj.txt", "vol.txt", "ns.txt", "centroid.txt"],
     },
-    ("3d", "v10_test"): {
-        "target": "PETSc_3Dv10_test",
-        "xdmf": "3Dv10_test.xdmf",
-        "history": ["obj.txt", "obj_before.txt", "vol.txt", "ns.txt", "centroid.txt"],
-    },
-    ("3d", "v11_test"): {
+    ("3d", "v11"): {
         "target": "PETSc_3Dv11_test",
         "xdmf": "3Dv11_test.xdmf",
         "history": ["obj.txt", "obj_before.txt", "vol.txt", "ns.txt", "centroid.txt"],
+    },
+    ("3d", "v13"): {
+        "target": "PETSc_3Dv13",
+        "xdmf": "3Dv13.xdmf",
+        "history": ["obj.txt", "obj_before.txt", "vol.txt", "ns.txt", "centroid.txt"],
+    },
+    ("3d", "v14"): {
+        "target": "PETSc_3Dv14_test",
+        "xdmf": "3Dv14_test.xdmf",
+        "history": ["obj.txt", "obj_before.txt", "vol.txt", "ns.txt", "centroid.txt"],
+    },
+    ("3d", "v15"): {
+        "target": "PETSc_3Dv15_test",
+        "xdmf": "3Dv15_test.xdmf",
+        "history": ["obj.txt", "obj_before.txt", "vol.txt", "ns.txt", "thin.txt", "centroid.txt"],
     },
 }
 
@@ -222,214 +190,6 @@ SHAPES: dict[str, list[dict[str, Any]]] = {
 
 DEFAULT_PRESETS = [
     {
-        "name": "3D-3Dv1-sphere",
-        "config": {
-            "dimension": "3d",
-            "algorithm": "v1",
-            "initial_shape": "sphere",
-            "objective_mode": "K",
-            "i_axis": 1,
-            "j_axis": 1,
-            "max_iters": 20,
-            "step_k": 0.1,
-            "hmax": DEFAULT_HMAX,
-            "hmin_ratio": DEFAULT_HMIN_RATIO,
-            "hausd_ratio": DEFAULT_HAUSD_RATIO,
-            "penalty": 100.0,
-            "camera_preset": "isometric",
-            "fps": 5,
-            "width": 960,
-            "height": 540,
-            "color_by": "solid",
-            "show_edges": False,
-        },
-    },
-    {
-        "name": "3D-3Dv2-prolate",
-        "config": {
-            "dimension": "3d",
-            "algorithm": "v2",
-            "initial_shape": "prolate",
-            "objective_mode": "K",
-            "i_axis": 1,
-            "j_axis": 1,
-            "max_iters": 10,
-            "step_k": 0.1,
-            "hmax": DEFAULT_HMAX,
-            "hmin_ratio": DEFAULT_HMIN_RATIO,
-            "hausd_ratio": DEFAULT_HAUSD_RATIO,
-            "camera_preset": "isometric",
-            "fps": 5,
-            "width": 960,
-            "height": 540,
-            "color_by": "solid",
-            "show_edges": False,
-        },
-    },
-    {
-        "name": "3D-3Dv3-sphere",
-        "config": {
-            "dimension": "3d",
-            "algorithm": "v3",
-            "initial_shape": "sphere",
-            "objective_mode": "K",
-            "i_axis": 1,
-            "j_axis": 1,
-            "max_iters": 20,
-            "step_k": 0.2,
-            "hmax": DEFAULT_HMAX,
-            "hmin_ratio": DEFAULT_HMIN_RATIO,
-            "hausd_ratio": DEFAULT_HAUSD_RATIO,
-            "convergence_window": 5,
-            "convergence_rtol_jraw": 5e-3,
-            "ns_alpha_j": 0.5,
-            "ns_alpha_c": 0.5,
-            "final_refine": True,
-            "final_hmax_factor": 0.1,
-            "final_hmin_ratio": 0.1,
-            "final_hausd_ratio": 3.0,
-            "final_rmc": 1e-4,
-            "smooth_steps": 1,
-            "smooth_eps_factor": 1.0,
-            "smooth_iso_shift": 0.0,
-            "camera_preset": "isometric",
-            "fps": 5,
-            "width": 960,
-            "height": 540,
-            "color_by": "solid",
-            "show_edges": False,
-        },
-    },
-    {
-        "name": "3D-3Dv4-sphere",
-        "config": {
-            "dimension": "3d",
-            "algorithm": "v4",
-            "initial_shape": "sphere",
-            "objective_mode": "K",
-            "objective_sense": "min",
-            "i_axis": 1,
-            "j_axis": 1,
-            "max_iters": 20,
-            "step_k": 0.1,
-            "hmax": DEFAULT_HMAX,
-            "hmin_ratio": DEFAULT_HMIN_RATIO,
-            "hausd_ratio": DEFAULT_HAUSD_RATIO,
-            "convergence_window": 5,
-            "convergence_rtol_jraw": 5e-3,
-            "ns_alpha_j": 0.5,
-            "ns_alpha_c": 0.5,
-            "surface_area_factor": 1.05,
-            "camera_preset": "isometric",
-            "fps": 5,
-            "width": 960,
-            "height": 540,
-            "color_by": "solid",
-            "show_edges": False,
-        },
-    },
-    {
-        "name": "3D-3Dv5-sphere",
-        "config": {
-            "dimension": "3d",
-            "algorithm": "v5",
-            "initial_shape": "sphere",
-            "objective_mode": "C",
-            "objective_sense": "min",
-            "i_axis": 0,
-            "j_axis": 0,
-            "max_iters": 20,
-            "step_k": 0.1,
-            "hmax": DEFAULT_HMAX,
-            "hmin_ratio": DEFAULT_HMIN_RATIO,
-            "hausd_ratio": DEFAULT_HAUSD_RATIO,
-            "convergence_window": 5,
-            "convergence_rtol_jraw": 5e-3,
-            "ns_alpha_j": 0.5,
-            "ns_alpha_c": 0.5,
-            "shift_x": 0.0,
-            "shift_y": 0.0,
-            "shift_z": 0.0,
-            "camera_preset": "isometric",
-            "fps": 5,
-            "width": 960,
-            "height": 540,
-            "color_by": "solid",
-            "show_edges": False,
-        },
-    },
-    {
-        "name": "3D-3Dv6-sphere",
-        "config": {
-            "dimension": "3d",
-            "algorithm": "v6",
-            "initial_shape": "sphere",
-            "objective_mode": "C",
-            "objective_sense": "min",
-            "i_axis": 0,
-            "j_axis": 0,
-            "max_iters": 20,
-            "step_k": 0.1,
-            "hmax": DEFAULT_HMAX,
-            "hmin_ratio": DEFAULT_HMIN_RATIO,
-            "hausd_ratio": DEFAULT_HAUSD_RATIO,
-            "convergence_window": 5,
-            "convergence_rtol_jraw": 5e-3,
-            "ns_alpha_j": 0.5,
-            "ns_alpha_c": 0.5,
-            "hilbert_alpha_factor": 16.0,
-            "surface_area_factor": 1.05,
-            "shift_x": 0.0,
-            "shift_y": 0.0,
-            "shift_z": 0.0,
-            "camera_preset": "isometric",
-            "fps": 5,
-            "width": 960,
-            "height": 540,
-            "color_by": "solid",
-            "show_edges": False,
-        },
-    },
-    {
-        "name": "3D-3Dv7-sphere",
-        "config": {
-            "dimension": "3d",
-            "algorithm": "v7",
-            "initial_shape": "sphere",
-            "objective_mode": "C",
-            "objective_sense": "min",
-            "i_axis": 0,
-            "j_axis": 0,
-            "max_iters": 20,
-            "step_k": 0.1,
-            "hmax": DEFAULT_HMAX,
-            "hmin_ratio": DEFAULT_HMIN_RATIO,
-            "hausd_ratio": DEFAULT_HAUSD_RATIO,
-            "convergence_window": 5,
-            "convergence_rtol_jraw": 5e-3,
-            "ns_alpha_j": 0.5,
-            "ns_alpha_c": 0.5,
-            "surface_area_factor": 1.05,
-            "shift_x": 0.0,
-            "shift_y": 0.0,
-            "shift_z": 0.0,
-            "final_refine": True,
-            "final_hmax_factor": 0.1,
-            "final_hmin_ratio": 0.1,
-            "final_hausd_ratio": 3.0,
-            "final_rmc": 1e-4,
-            "smooth_steps": 1,
-            "smooth_eps_factor": 0.1,
-            "smooth_iso_shift": 0.0,
-            "camera_preset": "isometric",
-            "fps": 5,
-            "width": 960,
-            "height": 540,
-            "color_by": "solid",
-            "show_edges": False,
-        },
-    },
-    {
         "name": "3D-3Dv8-sphere",
         "config": {
             "dimension": "3d",
@@ -504,41 +264,10 @@ DEFAULT_PRESETS = [
         },
     },
     {
-        "name": "3D-3Dv10_test-sphere",
+        "name": "3D-3Dv11-sphere",
         "config": {
             "dimension": "3d",
-            "algorithm": "v10_test",
-            "initial_shape": "sphere",
-            "objective_mode": "C",
-            "objective_sense": "min",
-            "i_axis": 0,
-            "j_axis": 0,
-            "max_iters": 20,
-            "step_k": 0.1,
-            "hmax": DEFAULT_HMAX,
-            "hmin_ratio": DEFAULT_HMIN_RATIO,
-            "hausd_ratio": DEFAULT_HAUSD_RATIO,
-            "convergence_window": 5,
-            "convergence_rtol_jraw": 5e-3,
-            "ns_alpha_j": 0.5,
-            "ns_alpha_c": 0.5,
-            "surface_area_factor": 1.05,
-            "shift_x": 0.0,
-            "shift_y": 0.0,
-            "shift_z": 0.0,
-            "camera_preset": "isometric",
-            "fps": 5,
-            "width": 960,
-            "height": 540,
-            "color_by": "solid",
-            "show_edges": False,
-        },
-    },
-    {
-        "name": "3D-3Dv11_test-sphere",
-        "config": {
-            "dimension": "3d",
-            "algorithm": "v11_test",
+            "algorithm": "v11",
             "initial_shape": "sphere",
             "objective_mode": "C",
             "objective_sense": "min",
@@ -565,6 +294,128 @@ DEFAULT_PRESETS = [
             "show_edges": False,
         },
     },
+    {
+        "name": "3D-3Dv13-sphere",
+        "config": {
+            "dimension": "3d",
+            "algorithm": "v13",
+            "initial_shape": "sphere",
+            "objective_mode": "C",
+            "objective_sense": "min",
+            "i_axis": 0,
+            "j_axis": 0,
+            "max_iters": 20,
+            "step_k": 0.1,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
+            "convergence_window": 5,
+            "convergence_rtol_jraw": 5e-2,
+            "ns_alpha_j": 0.5,
+            "ns_alpha_c": 0.5,
+            "surface_area_factor": 1.05,
+            "area_policy": "stable",
+            "accept_policy": "objective",
+            "area_correction_gain": 0.1,
+            "area_gram_rel_tol": 1e-3,
+            "shift_x": 0.0,
+            "shift_y": 0.0,
+            "shift_z": 0.0,
+            "camera_preset": "isometric",
+            "fps": 5,
+            "width": 960,
+            "height": 540,
+            "color_by": "solid",
+            "show_edges": False,
+        },
+    },
+    {
+        "name": "3D-3Dv14-sphere",
+        "config": {
+            "dimension": "3d",
+            "algorithm": "v14",
+            "initial_shape": "sphere",
+            "objective_mode": "C",
+            "objective_sense": "min",
+            "i_axis": 0,
+            "j_axis": 0,
+            "max_iters": 20,
+            "step_k": 0.1,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
+            "convergence_window": 5,
+            "convergence_rtol_jraw": 5e-2,
+            "ns_alpha_j": 0.5,
+            "ns_alpha_c": 0.5,
+            "surface_area_factor": 1.05,
+            "area_policy": "stable",
+            "accept_policy": "objective",
+            "area_correction_gain": 0.1,
+            "area_gram_rel_tol": 1e-3,
+            "adapt_size_map": True,
+            "adapt_h_near_factor": 2.0,
+            "adapt_h_far_factor": 1.0,
+            "adapt_r_near_factor": 1.0,
+            "adapt_r_far_factor": 0.5,
+            "adapt_gradation": 1.3,
+            "shift_x": 0.0,
+            "shift_y": 0.0,
+            "shift_z": 0.0,
+            "camera_preset": "isometric",
+            "fps": 5,
+            "width": 960,
+            "height": 540,
+            "color_by": "solid",
+            "show_edges": False,
+        },
+    },
+    {
+        "name": "3D-3Dv15-MinT-sphere",
+        "config": {
+            "dimension": "3d",
+            "algorithm": "v15",
+            "initial_shape": "sphere",
+            "objective_mode": "C",
+            "objective_sense": "min",
+            "i_axis": 0,
+            "j_axis": 0,
+            "max_iters": 20,
+            "step_k": 0.1,
+            "hmax": DEFAULT_HMAX,
+            "hmin_ratio": DEFAULT_HMIN_RATIO,
+            "hausd_ratio": DEFAULT_HAUSD_RATIO,
+            "convergence_window": 5,
+            "convergence_rtol_jraw": 5e-2,
+            "ns_alpha_j": 0.5,
+            "ns_alpha_c": 0.5,
+            "surface_area_factor": 1.05,
+            "area_policy": "stable",
+            "area_correction_gain": 0.1,
+            "area_gram_rel_tol": 1e-3,
+            "adapt_size_map": True,
+            "adapt_h_near_factor": 2.0,
+            "adapt_h_far_factor": 1.0,
+            "adapt_r_near_factor": 1.0,
+            "adapt_r_far_factor": 0.5,
+            "adapt_gradation": 1.3,
+            "min_thickness": 0.08,
+            "min_thickness_samples": 4,
+            "min_thickness_active_tol": 0.0,
+            "min_thickness_inactive_tol": 0.0,
+            "min_thickness_correction_gain": 0.2,
+            "min_thickness_dual_tol": 1e-10,
+            "shift_x": 0.0,
+            "shift_y": 0.0,
+            "shift_z": 0.0,
+            "camera_preset": "isometric",
+            "fps": 5,
+            "width": 960,
+            "height": 540,
+            "color_by": "thinViolation",
+            "show_edges": False,
+        },
+    },
 ]
 
 DIAGNOSTICS = [
@@ -576,7 +427,7 @@ DIAGNOSTICS = [
     {
         "needle": "Point is not contained in the finite element space mesh",
         "title": "网格/场定位失败",
-        "message": "当前界面或初始形状过于激进，边界积分点无法稳定映射到有限元网格。优先尝试更平滑的形状或 3Dv1。",
+        "message": "当前界面或初始形状过于激进，边界积分点无法稳定映射到有限元网格。优先尝试更平滑的形状或更保守的 v8/v13 参数。",
     },
     {
         "needle": "Failed to open",
@@ -598,7 +449,7 @@ DIAGNOSTICS = [
 
 class JobConfig(BaseModel):
     dimension: Literal["3d"]
-    algorithm: Literal["v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"]
+    algorithm: Literal["v8", "v9", "v11", "v13", "v14", "v15"]
     initial_shape: str
     objective_mode: Literal["K", "C", "Q"] = "K"
     objective_sense: Literal["min", "max"] = "min"
@@ -614,10 +465,23 @@ class JobConfig(BaseModel):
     convergence_rtol_jraw: float = Field(default=5e-3, gt=0)
     ns_alpha_j: float = Field(default=0.5, gt=0)
     ns_alpha_c: float = Field(default=0.5, gt=0)
-    hilbert_alpha_factor: float = Field(default=16.0, gt=0)
     surface_area_factor: float = Field(default=1.05, gt=0)
+    area_policy: Literal["basic", "stable"] = "stable"
+    accept_policy: Literal["mesh_only", "objective"] = "objective"
     area_correction_gain: float = Field(default=0.1, ge=0)
     area_gram_rel_tol: float = Field(default=1e-3, ge=0)
+    adapt_size_map: bool = True
+    adapt_h_near_factor: float = Field(default=2.0, gt=0)
+    adapt_h_far_factor: float = Field(default=1.0, gt=0)
+    adapt_r_near_factor: float = Field(default=1.0, ge=0)
+    adapt_r_far_factor: float = Field(default=0.5, gt=0)
+    adapt_gradation: float = Field(default=1.3, ge=1.0)
+    min_thickness: float = Field(default=0.0, ge=0)
+    min_thickness_samples: int = Field(default=4, ge=1, le=64)
+    min_thickness_active_tol: float = Field(default=0.0, ge=0)
+    min_thickness_inactive_tol: float = Field(default=0.0, ge=0)
+    min_thickness_correction_gain: float = Field(default=0.1, ge=0)
+    min_thickness_dual_tol: float = Field(default=1e-10, ge=0)
     shift_x: float = 0.0
     shift_y: float = 0.0
     shift_z: float = 0.0
@@ -631,7 +495,6 @@ class JobConfig(BaseModel):
     smooth_iso_shift: float = 0.0
     feature_smooth_kappa_factor: float = Field(default=1.0, gt=0)
     feature_smooth_min_weight: float = Field(default=0.08, ge=0, le=1)
-    penalty: float | None = None
     camera_preset: Literal["default", "front", "side", "top", "isometric"] = "default"
     fps: int = Field(default=5, ge=1, le=60)
     width: int = Field(default=960, ge=320, le=3840)
@@ -676,8 +539,6 @@ def model_fields_set(model: BaseModel) -> set[str]:
 
 
 def effective_smooth_eps_factor(config: JobConfig) -> float:
-    if config.algorithm == "v7" and "smooth_eps_factor" not in model_fields_set(config):
-        return 0.1
     return config.smooth_eps_factor
 
 
@@ -730,7 +591,7 @@ def slugify(value: str) -> str:
 def normalize_config_dict(data: dict[str, Any]) -> dict[str, Any]:
     normalized = dict(data)
     normalized["dimension"] = "3d"
-    algorithm = str(normalized.get("algorithm", "v1"))
+    algorithm = str(normalized.get("algorithm", "v13"))
     normalized["algorithm"] = ALGORITHM_ALIASES.get(algorithm, algorithm)
     return normalized
 
@@ -761,17 +622,11 @@ def find_xdmf_path(experiment_dir: Path, target_info: dict[str, Any]) -> Path | 
 
 
 def supports_objective_mode(config: JobConfig) -> bool:
-    if config.objective_mode == "K":
-        return True
-    if config.objective_mode == "C":
-        return config.algorithm in {"v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}
-    if config.objective_mode == "Q":
-        return config.algorithm in {"v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}
-    return False
+    return config.algorithm in SUPPORTED_ALGORITHMS and config.objective_mode in {"K", "C", "Q"}
 
 
 def supports_objective_sense(config: JobConfig) -> bool:
-    return config.algorithm in {"v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}
+    return config.algorithm in SUPPORTED_ALGORITHMS
 
 
 def build_env(config: JobConfig, mesh_path: str) -> dict[str, str]:
@@ -786,24 +641,42 @@ def build_env(config: JobConfig, mesh_path: str) -> dict[str, str]:
     env["HMAX"] = str(config.hmax)
     env["HMIN_RATIO"] = str(config.hmin_ratio)
     env["HAUSD_RATIO"] = str(config.hausd_ratio)
-    if config.algorithm in {"v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
+    if config.algorithm in SUPPORTED_ALGORITHMS:
         env["CONVERGENCE_WINDOW"] = str(config.convergence_window)
         env["CONVERGENCE_RTOL_JRAW"] = str(config.convergence_rtol_jraw)
-    if config.algorithm in {"v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
+    if config.algorithm in SUPPORTED_ALGORITHMS:
         env["NS_ALPHA_J"] = str(config.ns_alpha_j)
         env["NS_ALPHA_C"] = str(config.ns_alpha_c)
-    if config.algorithm == "v6":
-        env["HILBERT_ALPHA_FACTOR"] = str(config.hilbert_alpha_factor)
-    if config.algorithm in {"v4", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
+    if config.algorithm in SUPPORTED_ALGORITHMS:
         env["SURFACE_AREA_FACTOR"] = str(config.surface_area_factor)
-    if config.algorithm == "v9":
+    if config.algorithm in {"v9", "v13", "v14", "v15"}:
         env["AREA_CORRECTION_GAIN"] = str(config.area_correction_gain)
         env["AREA_GRAM_REL_TOL"] = str(config.area_gram_rel_tol)
-    if config.algorithm in {"v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
+    if config.algorithm in {"v13", "v14", "v15"}:
+        env["AREA_POLICY"] = str(config.area_policy)
+    if config.algorithm in {"v13", "v14"}:
+        env["ACCEPT_POLICY"] = str(config.accept_policy)
+    if config.algorithm in {"v14", "v15"}:
+        env["ADAPT_SIZE_MAP"] = "1" if config.adapt_size_map else "0"
+        env["ADAPT_H_NEAR_FACTOR"] = str(config.adapt_h_near_factor)
+        env["ADAPT_H_FAR_FACTOR"] = str(config.adapt_h_far_factor)
+        env["ADAPT_R_NEAR_FACTOR"] = str(config.adapt_r_near_factor)
+        env["ADAPT_R_FAR_FACTOR"] = str(config.adapt_r_far_factor)
+        env["ADAPT_GRADATION"] = str(config.adapt_gradation)
+    if config.algorithm == "v15":
+        env["MIN_THICKNESS"] = str(config.min_thickness)
+        env["MIN_THICKNESS_SAMPLES"] = str(config.min_thickness_samples)
+        if config.min_thickness_active_tol > 0:
+            env["MIN_THICKNESS_ACTIVE_TOL"] = str(config.min_thickness_active_tol)
+        if config.min_thickness_inactive_tol > 0:
+            env["MIN_THICKNESS_INACTIVE_TOL"] = str(config.min_thickness_inactive_tol)
+        env["MIN_THICKNESS_CORRECTION_GAIN"] = str(config.min_thickness_correction_gain)
+        env["MIN_THICKNESS_DUAL_TOL"] = str(config.min_thickness_dual_tol)
+    if config.algorithm in SUPPORTED_ALGORITHMS:
         env["SHIFT_X"] = str(config.shift_x)
         env["SHIFT_Y"] = str(config.shift_y)
         env["SHIFT_Z"] = str(config.shift_z)
-    if config.algorithm in {"v3", "v4", "v5", "v7", "v8"}:
+    if config.algorithm == "v8":
         env["FINAL_REFINE"] = "1" if config.final_refine else "0"
         env["FINAL_HMAX_FACTOR"] = str(config.final_hmax_factor)
         env["FINAL_HMIN_RATIO"] = str(config.final_hmin_ratio)
@@ -815,8 +688,6 @@ def build_env(config: JobConfig, mesh_path: str) -> dict[str, str]:
     if config.algorithm == "v8":
         env["FEATURE_SMOOTH_KAPPA_FACTOR"] = str(config.feature_smooth_kappa_factor)
         env["FEATURE_SMOOTH_MIN_WEIGHT"] = str(config.feature_smooth_min_weight)
-    if config.algorithm == "v1" and config.penalty is not None:
-        env["AL_PENALTY"] = str(config.penalty)
     return env
 
 
@@ -870,30 +741,48 @@ def used_config_payload(config: JobConfig, resolved_mesh_path: str, initial_shap
     if config.mesh_path and config.initial_shape == "custom":
         payload["mesh_path"] = resolved_mesh_path
 
-    if config.algorithm in {"v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
+    if config.algorithm in SUPPORTED_ALGORITHMS:
         payload["convergence_window"] = config.convergence_window
         payload["convergence_rtol_jraw"] = config.convergence_rtol_jraw
 
-    if config.algorithm in {"v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
+    if config.algorithm in SUPPORTED_ALGORITHMS:
         payload["ns_alpha_j"] = config.ns_alpha_j
         payload["ns_alpha_c"] = config.ns_alpha_c
 
-    if config.algorithm == "v6":
-        payload["hilbert_alpha_factor"] = config.hilbert_alpha_factor
-
-    if config.algorithm in {"v4", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
+    if config.algorithm in SUPPORTED_ALGORITHMS:
         payload["surface_area_factor"] = config.surface_area_factor
 
-    if config.algorithm == "v9":
+    if config.algorithm in {"v9", "v13", "v14", "v15"}:
         payload["area_correction_gain"] = config.area_correction_gain
         payload["area_gram_rel_tol"] = config.area_gram_rel_tol
 
-    if config.algorithm in {"v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
+    if config.algorithm in {"v13", "v14", "v15"}:
+        payload["area_policy"] = config.area_policy
+    if config.algorithm in {"v13", "v14"}:
+        payload["accept_policy"] = config.accept_policy
+
+    if config.algorithm in {"v14", "v15"}:
+        payload["adapt_size_map"] = config.adapt_size_map
+        payload["adapt_h_near_factor"] = config.adapt_h_near_factor
+        payload["adapt_h_far_factor"] = config.adapt_h_far_factor
+        payload["adapt_r_near_factor"] = config.adapt_r_near_factor
+        payload["adapt_r_far_factor"] = config.adapt_r_far_factor
+        payload["adapt_gradation"] = config.adapt_gradation
+
+    if config.algorithm == "v15":
+        payload["min_thickness"] = config.min_thickness
+        payload["min_thickness_samples"] = config.min_thickness_samples
+        payload["min_thickness_active_tol"] = config.min_thickness_active_tol
+        payload["min_thickness_inactive_tol"] = config.min_thickness_inactive_tol
+        payload["min_thickness_correction_gain"] = config.min_thickness_correction_gain
+        payload["min_thickness_dual_tol"] = config.min_thickness_dual_tol
+
+    if config.algorithm in SUPPORTED_ALGORITHMS:
         payload["shift_x"] = config.shift_x
         payload["shift_y"] = config.shift_y
         payload["shift_z"] = config.shift_z
 
-    if config.algorithm in {"v3", "v4", "v5", "v7", "v8"}:
+    if config.algorithm == "v8":
         payload["final_refine"] = config.final_refine
         payload["final_hmax_factor"] = config.final_hmax_factor
         payload["final_hmin_ratio"] = config.final_hmin_ratio
@@ -906,9 +795,6 @@ def used_config_payload(config: JobConfig, resolved_mesh_path: str, initial_shap
     if config.algorithm == "v8":
         payload["feature_smooth_kappa_factor"] = config.feature_smooth_kappa_factor
         payload["feature_smooth_min_weight"] = config.feature_smooth_min_weight
-
-    if config.algorithm == "v1" and config.penalty is not None:
-        payload["penalty"] = config.penalty
 
     return payload
 
@@ -935,9 +821,9 @@ def parse_series_file(path: Path, default_columns: list[str]) -> dict[str, Any]:
 
 
 def series_layout(config: dict[str, Any], history_name: str) -> list[str]:
-    algorithm = ALGORITHM_ALIASES.get(str(config.get("algorithm", "v1")), str(config.get("algorithm", "v1")))
+    algorithm = ALGORITHM_ALIASES.get(str(config.get("algorithm", "v13")), str(config.get("algorithm", "v13")))
     if history_name == "obj.txt":
-        if algorithm in {"v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
+        if algorithm in SUPPORTED_ALGORITHMS:
             return ["iter", "objective"]
         return ["iter", "objective", "objective_aug"]
     if history_name == "obj_raw.txt":
@@ -945,17 +831,70 @@ def series_layout(config: dict[str, Any], history_name: str) -> list[str]:
     if history_name == "obj_before.txt":
         return ["iter", "objective_raw", "objective"]
     if history_name == "vol.txt":
-        if algorithm in {"v4", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
+        if algorithm in SUPPORTED_ALGORITHMS:
             return ["iter", "volume", "violation", "area", "area_violation", "area_active"]
         return ["iter", "volume", "violation"]
     if history_name == "al.txt":
         return ["lambda", "penalty"]
     if history_name == "ns.txt":
-        if algorithm in {"v4", "v6", "v7", "v8", "v9", "v10_test", "v11_test"}:
+        if algorithm == "v15":
+            return [
+                "iter",
+                "alpha_j",
+                "alpha_c",
+                "active_basis_dim",
+                "area_active",
+                "area_null_active",
+                "thin_active",
+                "thin_null_active",
+                "proj_v",
+                "proj_a",
+                "proj_t",
+                "range_v",
+                "range_a",
+                "range_t",
+                "max_xi_j",
+                "max_xi_c",
+            ]
+        if algorithm in SUPPORTED_ALGORITHMS:
             return ["iter", "alpha_j", "alpha_c", "area_active", "proj_v", "proj_a", "range_v", "range_a", "max_xi_j", "max_xi_c"]
         return ["iter", "alpha_j", "alpha_c", "proj_coeff", "range_coeff", "max_xi_j", "max_xi_c"]
+    if history_name == "thin.txt":
+        return [
+            "iter",
+            "penalty",
+            "max_violation",
+            "active",
+            "null_active",
+            "dual_mu",
+            "correction",
+            "samples",
+            "violating_samples",
+            "skipped_samples",
+        ]
     if history_name == "centroid.txt":
         return ["iter", "centroid_x", "centroid_y", "centroid_z"]
+    if history_name == "line_search.txt":
+        return [
+            "iter",
+            "attempt",
+            "step_k",
+            "hmax",
+            "hmin",
+            "hausd",
+            "status",
+            "jraw_after",
+            "j_after",
+            "jraw_before",
+            "j_before",
+            "tol",
+            "last_jraw",
+            "last_j",
+            "min_tet_volume",
+            "min_altitude_ratio",
+            "bad_volume_cells",
+            "bad_altitude_cells",
+        ]
     return ["c0", "c1"]
 
 
@@ -1429,7 +1368,9 @@ def list_user_presets() -> list[dict[str, Any]]:
     normalized: list[dict[str, Any]] = []
     for item in presets:
         if isinstance(item, dict) and isinstance(item.get("config"), dict):
-            normalized.append({**item, "config": normalize_config_dict(item["config"])})
+            config = normalize_config_dict(item["config"])
+            if config.get("algorithm") in SUPPORTED_ALGORITHMS:
+                normalized.append({**item, "config": config})
     return normalized
 
 
@@ -1768,12 +1709,12 @@ def api_start_job(config: JobConfig) -> dict[str, Any]:
     if not supports_objective_mode(config):
         raise HTTPException(
             status_code=400,
-            detail="当前组合暂不支持该目标模式。现阶段 C/Q 仅支持 v1、v2、v3、v4、v5、v6、v7、v8、v9、v10_test、v11_test。",
+            detail="当前组合暂不支持该目标模式。现阶段仅支持 v8、v9、v11、v13、v14、v15。",
         )
     if config.objective_sense == "max" and not supports_objective_sense(config):
         raise HTTPException(
             status_code=400,
-            detail="当前组合暂不支持 max 模式。现阶段 min/max 仅支持 v1、v2、v3、v4、v5、v6、v7、v8、v9、v10_test、v11_test。",
+            detail="当前组合暂不支持 max 模式。现阶段 min/max 仅支持 v8、v9、v11、v13、v14、v15。",
         )
     return manager.start(config)
 
